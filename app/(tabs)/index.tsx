@@ -23,6 +23,7 @@ export default function PrayerTimesScreen() {
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
 
   //make 'hanafi' color blue - denoting hyperlink
+  //Add Ishraq time.
   //Time remaining for prayer.
   //tasbih counter
   //Qibla direction with compass

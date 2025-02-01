@@ -33,12 +33,13 @@ export async function schedulePrayerNotifications(prayerTimes: PrayerTimes, sele
 
     const prayers = [
       { name: 'Fajr', time: prayerTimes.Fajr },
-      { name: 'Sunrise', time: prayerTimes.Sunrise },
+      { name: 'Sunrise', time: prayerTimes.Sunrise, message: 'Perform any Prayer after this time.' },
       { name: 'Ishraq', time: prayerTimes.Ishraq },
       { name: 'Dhuhr', time: prayerTimes.Dhuhr },
       { name: 'Asr', time: prayerTimes.Asr },
       { name: 'Maghrib', time: prayerTimes.Maghrib },
       { name: 'Isha', time: prayerTimes.Isha },
+      { name: 'Zawal', time: prayerTimes.Zawal, message: 'Perform any Prayer after this time.' }
     ];
 
     for (const prayer of prayers) {
@@ -61,7 +62,7 @@ export async function schedulePrayerNotifications(prayerTimes: PrayerTimes, sele
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Salat Time',
-          body: `It's time for ${prayer.name}`,
+          body: `It's time for ${prayer.name}${prayer.message ? ` - ${prayer.message}` : ''}`,
         },
         trigger: {
           hour: hour24,
