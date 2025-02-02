@@ -25,7 +25,8 @@ export function calculatePrayerTime(
   isMaghribOrSunrise: boolean,
   isFajrOrIsha: boolean,
   salat: string,
-  asrMethod: number = 2
+  asrMethod: number = 2,
+  ishaMethod: number = 1
 ): number {
   const start = new Date(date.getFullYear(), 0, 1);
   const diff = date.getTime() - start.getTime();
@@ -54,9 +55,19 @@ export function calculatePrayerTime(
       tanValue = Math.tan((C - latRad));
   }
   
-  const A = isMaghribOrSunrise || isFajrOrIsha
-    ? (isMaghribOrSunrise ? 91 : 110) + sqrtE * 0.0347
-    : Math.atan(asrMethod + tanValue) * (180 / Math.PI);
+  let A;
+  if (isMaghribOrSunrise) {
+    A = 91 + sqrtE * 0.0347;
+  } else if (isFajrOrIsha) {
+    if (salat === 'isha') {
+      // Hanafi method = 1 (default), Shafi method = 2
+      A = ishaMethod === 2 ? 107 + sqrtE * 0.0347 : 110 + sqrtE * 0.0347;
+    } else {
+      A = 110 + sqrtE * 0.0347;
+    }
+  } else {
+    A = Math.atan(asrMethod + tanValue) * (180 / Math.PI);
+  }
 
   const ARad = A * (Math.PI / 180);
 
@@ -77,16 +88,21 @@ export function calculatePrayerTime(
   return timeOffset;
 }
 
-export function calculatePrayerTimes(date: Date, coordinates: Coordinates, asrMethod: number = 2): PrayerTimes {
+export function calculatePrayerTimes(
+  date: Date, 
+  coordinates: Coordinates, 
+  asrMethod: number = 2,
+  ishaMethod: number = 1
+): PrayerTimes {
   const dhuhrTime = calculateDhuhr(coordinates.longitude, date);
   const [dhuhrHours, dhuhrMinutes] = dhuhrTime.split(':').map(Number);
   const dhuhrDecimal = dhuhrHours + (dhuhrMinutes / 60);
 
-  const fajrOffset = calculatePrayerTime(date, coordinates, false, true, 'fajr', 2);
-  const sunriseOffset = calculatePrayerTime(date, coordinates, true, false, 'sunrise', 2);
-  const asrOffset = calculatePrayerTime(date, coordinates, false, false, 'asr', asrMethod);
-  const maghribOffset = calculatePrayerTime(date, coordinates, true, false, 'maghrib', 2);
-  const ishaOffset = calculatePrayerTime(date, coordinates, false, true, 'isha', 2);
+  const fajrOffset = calculatePrayerTime(date, coordinates, false, true, 'fajr', 2, ishaMethod);
+  const sunriseOffset = calculatePrayerTime(date, coordinates, true, false, 'sunrise', 2, ishaMethod);
+  const asrOffset = calculatePrayerTime(date, coordinates, false, false, 'asr', asrMethod, ishaMethod);
+  const maghribOffset = calculatePrayerTime(date, coordinates, true, false, 'maghrib', 2, ishaMethod);
+  const ishaOffset = calculatePrayerTime(date, coordinates, false, true, 'isha', 2, ishaMethod);
 
   const formatTime = (timeInDecimalHours: number) => {
     const hours = Math.floor(timeInDecimalHours);

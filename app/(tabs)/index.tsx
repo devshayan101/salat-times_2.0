@@ -10,6 +10,7 @@ import { setNotificationChannel, schedulePrayerNotifications } from '../services
 import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { AsrMethodModal } from '../components/AsrMethodModal';
+import { IshaMethodModal } from '../components/IshaMethodModal';
 
 export default function PrayerTimesScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -20,7 +21,9 @@ export default function PrayerTimesScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [showAsrModal, setShowAsrModal] = useState(false);
+  const [showIshaModal, setShowIshaModal] = useState(false);
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
+  const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
 
   //make 'hanafi' color blue - denoting hyperlink
   //Add Ishraq time.
@@ -38,7 +41,7 @@ export default function PrayerTimesScreen() {
   const updatePrayerTimes = async (date: Date, coords: Coordinates) => {
     try {
       setLoading(true);
-      const times = calculatePrayerTimes(date, coords, asrMethod);
+      const times = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
       setPrayerTimes(times);
       if (notificationsEnabled) {
         await schedulePrayerNotifications(times, date);
@@ -102,7 +105,7 @@ export default function PrayerTimesScreen() {
       };
       updatePrayerTimes(selectedDate, coords);
     }
-  }, [selectedDate, location, asrMethod]);
+  }, [selectedDate, location, asrMethod, ishaMethod]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -208,7 +211,13 @@ export default function PrayerTimesScreen() {
             onAsrPress={() => setShowAsrModal(true)}
           />
           <PrayerCard name="Maghrib" time={prayerTimes.Maghrib} />
-          <PrayerCard name="Isha" time={prayerTimes.Isha} />
+          <PrayerCard 
+            name="Isha" 
+            time={prayerTimes.Isha} 
+            isIsha={true}
+            ishaMethod={ishaMethod}
+            onIshaPress={() => setShowIshaModal(true)}
+          />
         </>
       )}
 
@@ -219,6 +228,16 @@ export default function PrayerTimesScreen() {
         onMethodChange={(method) => {
           setAsrMethod(method);
           setShowAsrModal(false);
+        }}
+      />
+
+      <IshaMethodModal
+        visible={showIshaModal}
+        onClose={() => setShowIshaModal(false)}
+        selectedMethod={ishaMethod}
+        onMethodChange={(method) => {
+          setIshaMethod(method);
+          setShowIshaModal(false);
         }}
       />
     </ScrollView>

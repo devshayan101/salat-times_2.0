@@ -8,6 +8,7 @@ interface PrayerCardProps {
   isAsr?: boolean;
   isIsha?: boolean;
   asrMethod?: number;
+  ishaMethod?: number;
   onAsrPress?: () => void;
   onIshaPress?: () => void;
 }
@@ -18,11 +19,22 @@ export const PrayerCard = React.memo(({
   isAsr = false,
   isIsha = false,
   asrMethod = 2,
+  ishaMethod = 1,
   onAsrPress,
   onIshaPress
 }: PrayerCardProps) => {
-  const displayName = isAsr ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})` : name;
+  const displayName = isAsr 
+    ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})`
+    : isIsha
+    ? `${name} (${ishaMethod === 1 ? 'Hanafi' : 'Shafi'})`
+    : name;
   const isPressable = isAsr || isIsha;
+
+ const displayChange = isAsr 
+    ? `(${asrMethod === 1 ? 'Hanafi' : 'Shafi'})`
+    : isIsha
+    ? `(${ishaMethod === 1 ? 'Shafi' : 'Hanafi'})`
+    : name;
 
   return (
     <Pressable 
@@ -39,7 +51,7 @@ export const PrayerCard = React.memo(({
         <View style={styles.prayerHeader}>
           <Text style={styles.prayerName}>{displayName}</Text>
           {isPressable && (
-            <Text style={styles.pressableHint}>Press to change</Text>
+            <Text style={styles.pressableHint}>Press for {displayChange}</Text>
           )}
         </View>
         <Text style={styles.prayerTime}>{time}</Text>
