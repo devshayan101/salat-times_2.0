@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { PrayerTimeInfo } from '../utils/timeUtils';
 
 interface PrayerCardProps {
   name: string;
@@ -11,6 +12,7 @@ interface PrayerCardProps {
   ishaMethod?: number;
   onAsrPress?: () => void;
   onIshaPress?: () => void;
+  currentPrayer?: PrayerTimeInfo | null;
 }
 
 export const PrayerCard = React.memo(({ 
@@ -21,7 +23,8 @@ export const PrayerCard = React.memo(({
   asrMethod = 2,
   ishaMethod = 1,
   onAsrPress,
-  onIshaPress
+  onIshaPress,
+  currentPrayer
 }: PrayerCardProps) => {
   const displayName = isAsr 
     ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})`
@@ -30,11 +33,13 @@ export const PrayerCard = React.memo(({
     : name;
   const isPressable = isAsr || isIsha;
 
- const displayChange = isAsr 
+  const displayChange = isAsr 
     ? `(${asrMethod === 1 ? 'Hanafi' : 'Shafi'})`
     : isIsha
     ? `(${ishaMethod === 1 ? 'Shafi' : 'Hanafi'})`
     : name;
+
+  const isCurrentPrayer = currentPrayer?.name === name;
 
   return (
     <Pressable 
@@ -44,8 +49,12 @@ export const PrayerCard = React.memo(({
         isPressable && pressed && styles.pressed
       ]}>
       <LinearGradient
-        colors={['#1F2937', '#374151']}
-        style={[styles.prayerCard, isPressable && styles.pressableCard]}
+        colors={isCurrentPrayer ? ['#1F4937', '#374151'] : ['#1F2937', '#374151']}
+        style={[
+          styles.prayerCard, 
+          isPressable && styles.pressableCard,
+          isCurrentPrayer && styles.currentPrayerCard
+        ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
         <View style={styles.prayerHeader}>
@@ -54,7 +63,14 @@ export const PrayerCard = React.memo(({
             <Text style={styles.pressableHint}>Press for {displayChange}</Text>
           )}
         </View>
-        <Text style={styles.prayerTime}>{time}</Text>
+        <View style={styles.timeContainer}>
+          <Text style={styles.prayerTime}>{time}</Text>
+          {isCurrentPrayer && currentPrayer && (
+            <Text style={styles.countdownText}>
+              Time remaining: {currentPrayer.remainingTime}
+            </Text>
+          )}
+        </View>
       </LinearGradient>
     </Pressable>
   );
@@ -84,6 +100,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#60A5FA',
   },
+  currentPrayerCard: {
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
   prayerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -96,6 +116,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  timeContainer: {
+    flexDirection: 'column',
+    gap: 4,
+  },
   prayerTime: {
     color: '#60A5FA',
     fontSize: 24,
@@ -105,5 +129,10 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  countdownText: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 

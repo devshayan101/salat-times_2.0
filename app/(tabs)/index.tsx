@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -11,6 +11,7 @@ import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { AsrMethodModal } from '../components/AsrMethodModal';
 import { IshaMethodModal } from '../components/IshaMethodModal';
+import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
 
 export default function PrayerTimesScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -24,9 +25,10 @@ export default function PrayerTimesScreen() {
   const [showIshaModal, setShowIshaModal] = useState(false);
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
   const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
+  const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
 
-  //make 'hanafi' color blue - denoting hyperlink
-  //Add Ishraq time.
+  //make 'hanafi' color blue - denoting hyperlink - ok
+  //Add Ishraq time. - ok
   //Time remaining for prayer.
   //tasbih counter
   //Qibla direction with compass
@@ -122,6 +124,27 @@ export default function PrayerTimesScreen() {
     setSelectedDate(currentDate);
   };
 
+  // Add countdown timer effect
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (prayerTimes) {
+      const updateCurrentPrayer = () => {
+        const current = getPrayerTimes(prayerTimes);
+        setCurrentPrayer(current);
+      };
+      
+      updateCurrentPrayer();
+      timer = setInterval(updateCurrentPrayer, 1000);
+    }
+    
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [prayerTimes]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -198,25 +221,27 @@ export default function PrayerTimesScreen() {
 
       {prayerTimes && (
         <>
-          <PrayerCard name="Fajr" time={prayerTimes.Fajr} />
-          <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} />
-          <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} />
-          <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} />
-          <PrayerCard name="Dhuhr" time={prayerTimes.Dhuhr} />
+          <PrayerCard name="Fajr" time={prayerTimes.Fajr} currentPrayer={currentPrayer} />
+          <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} currentPrayer={currentPrayer} />
+          <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} currentPrayer={currentPrayer} />
+          <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} currentPrayer={currentPrayer} />
+          <PrayerCard name="Dhuhr" time={prayerTimes.Dhuhr} currentPrayer={currentPrayer} />
           <PrayerCard 
             name="Asr" 
             time={prayerTimes.Asr} 
             isAsr={true}
             asrMethod={asrMethod}
             onAsrPress={() => setShowAsrModal(true)}
+            currentPrayer={currentPrayer}
           />
-          <PrayerCard name="Maghrib" time={prayerTimes.Maghrib} />
+          <PrayerCard name="Maghrib" time={prayerTimes.Maghrib} currentPrayer={currentPrayer} />
           <PrayerCard 
             name="Isha" 
             time={prayerTimes.Isha} 
             isIsha={true}
             ishaMethod={ishaMethod}
             onIshaPress={() => setShowIshaModal(true)}
+            currentPrayer={currentPrayer}
           />
         </>
       )}
