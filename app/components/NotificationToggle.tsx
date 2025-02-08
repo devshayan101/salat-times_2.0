@@ -48,7 +48,7 @@ export const NotificationToggle = React.memo(({
 
   return (
     <View style={styles.notificationToggle}>
-      <Text style={styles.notificationText}>Prayer Time Notifications</Text>
+      <Text style={styles.notificationText}>Salat Time Notifications</Text>
       <Switch
         value={notificationsEnabled}
         onValueChange={handleNotificationToggle}

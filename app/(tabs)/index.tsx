@@ -1,17 +1,61 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Audio } from 'expo-av';
+// import { Audio } from 'expo-av';
 
 import { PrayerTimes, Coordinates } from '../types';
 import { calculatePrayerTimes } from '../services/prayerTimeCalculator';
-import { setNotificationChannel, schedulePrayerNotifications } from '../services/notificationService';
+import { 
+  setNotificationChannel, 
+  schedulePrayerNotifications, 
+  showRemainingTimeNotification,
+  updateCountdownNotification,
+  clearCountdownNotifications
+} from '../services/notificationService';
 import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { AsrMethodModal } from '../components/AsrMethodModal';
 import { IshaMethodModal } from '../components/IshaMethodModal';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
+
+const TimerSection = ({ currentPrayer, location }: { currentPrayer: PrayerTimeInfo | null, location: Location.LocationObject | null }) => {
+  const timezoneOffset = -(new Date().getTimezoneOffset() / 60);
+  const gmtString = `GMT:${timezoneOffset >= 0 ? '+' : ''}${timezoneOffset}`;
+  
+  return (
+    <View style={styles.timerSection}>
+      <View style={styles.timerContainer}>
+        {currentPrayer && (
+          <>
+            <Text style={styles.currentPrayerName}>{currentPrayer.name}</Text>
+            <Text style={styles.timerText}>{currentPrayer.remainingTime}</Text>
+          </>
+        )}
+      </View>
+      {location && (
+        <View style={styles.locationDetails}>
+          <View style={styles.locationRow}>
+            <Text style={styles.locationLabel}>Lat/Long:</Text>
+            <Text style={styles.locationValue}>
+              {location.coords.latitude.toFixed(4)}°, {location.coords.longitude.toFixed(4)}°
+            </Text>
+          </View>
+          <View style={styles.locationRow}>
+            <Text style={styles.locationLabel}>Altitude:</Text>
+            <Text style={styles.locationValue}>
+              {Math.max(0, location.coords.altitude ?? 0).toFixed(1)}meters ±{Math.max(0, location.coords.altitudeAccuracy ?? 0).toFixed(1)}
+            </Text>
+          </View>
+          <View style={styles.locationRow}>
+            <Text style={styles.locationLabel}>Timezone:</Text>
+            <Text style={styles.locationValue}>{gmtString}</Text>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
 
 export default function PrayerTimesScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -26,10 +70,19 @@ export default function PrayerTimesScreen() {
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
   const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
   const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
-
+  
+  // Ref to track if notification has been shown for current prayer
+  const notificationShownRef = useRef<{[key: string]: boolean}>({});
+  // Ref to track the current prayer we're showing notifications for
+  const currentNotificationPrayerRef = useRef<string>('');
+  // Ref to track last update time to limit the frequency of notification updates
+  const lastNotificationUpdateRef = useRef<number>(0);
+  
   //make 'hanafi' color blue - denoting hyperlink - ok
   //Add Ishraq time. - ok
-  //Time remaining for prayer.
+  //Time remaining for prayer. - ok
+  //Nemaz time remainig counter - ok
+  //Give notification when 20% of time is left
   //tasbih counter
   //Qibla direction with compass
   //Advert page - option to push Advert to Advert page.
@@ -56,16 +109,16 @@ export default function PrayerTimesScreen() {
     }
   };
 
-  const playBeepSound = async () => {
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/beep.mp3')
-      );
-      await sound.playAsync();
-    } catch (error) {
-      console.log('Error playing sound:', error);
-    }
-  };
+  // const playBeepSound = async () => {
+  //   try {
+  //     const { sound } = await Audio.Sound.createAsync(
+  //       require('../../assets/beep.mp3')
+  //     );
+  //     await sound.playAsync();
+  //   } catch (error) {
+  //     console.log('Error playing sound:', error);
+  //   }
+  // };
 
   useEffect(() => {
     (async () => {
@@ -105,6 +158,7 @@ export default function PrayerTimesScreen() {
         longitude: location.coords.longitude,
         altitude: location.coords.altitude ?? 0
       };
+      console.log(location);
       updatePrayerTimes(selectedDate, coords);
     }
   }, [selectedDate, location, asrMethod, ishaMethod]);
@@ -132,6 +186,45 @@ export default function PrayerTimesScreen() {
       const updateCurrentPrayer = () => {
         const current = getPrayerTimes(prayerTimes);
         setCurrentPrayer(current);
+        
+        // Skip non-prayer times for notifications
+        const isPrayerTime = current && 
+          current.name !== 'Sunrise' && 
+          current.name !== 'Zawal Time' &&
+          current.name !== 'Ishraq';
+        
+        if (isPrayerTime && notificationsEnabled) {
+          // Check if we need to show a notification for 20% time remaining
+          if (current.percentageRemaining <= 20 && 
+              current.percentageRemaining > 0 &&
+              !notificationShownRef.current[current.name]) {
+            
+            // Mark this prayer as having shown a notification
+            notificationShownRef.current[current.name] = true;
+            currentNotificationPrayerRef.current = current.name;
+            
+            // Show the initial notification with remaining time
+            showRemainingTimeNotification(current.name, current.remainingTime);
+          }
+          
+          // Update the countdown notification if we've shown one for this prayer
+          // but limit updates to once per second to avoid excessive updates
+          const now = Date.now();
+          if (currentNotificationPrayerRef.current === current.name && 
+              now - lastNotificationUpdateRef.current >= 1000) {
+            updateCountdownNotification(current.name, current.remainingTime);
+            lastNotificationUpdateRef.current = now;
+          }
+        }
+        
+        // Reset notification flags when prayer changes
+        if (current && currentNotificationPrayerRef.current && 
+            currentNotificationPrayerRef.current !== current.name) {
+          // Clear notifications when prayer changes
+          clearCountdownNotifications();
+          notificationShownRef.current = {};
+          currentNotificationPrayerRef.current = '';
+        }
       };
       
       updateCurrentPrayer();
@@ -142,8 +235,10 @@ export default function PrayerTimesScreen() {
       if (timer) {
         clearInterval(timer);
       }
+      // Clear notifications when component unmounts
+      clearCountdownNotifications();
     };
-  }, [prayerTimes]);
+  }, [prayerTimes, notificationsEnabled]);
 
   if (loading) {
     return (
@@ -198,11 +293,7 @@ export default function PrayerTimesScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <Text style={styles.locationText}>
-        {location
-          ? `📍 ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`
-          : 'Location not available'}
-      </Text>
+      <TimerSection currentPrayer={currentPrayer} location={location} />
 
       <NotificationToggle
         notificationsEnabled={notificationsEnabled}
@@ -305,5 +396,56 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 16,
     textAlign: 'center',
+  },
+  timerSection: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  currentPrayerName: {
+    color: '#60A5FA',
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  timerText: {
+    color: '#10B981',
+    fontSize: 48,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  locationDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    paddingTop: 16,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationLabel: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  locationValue: {
+    color: '#F3F4F6',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

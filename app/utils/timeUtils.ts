@@ -3,6 +3,7 @@ export interface PrayerTimeInfo {
   remainingTime: string;
   timeInMs: number;
   isCurrentPrayer: boolean;
+  percentageRemaining: number;
 }
 
 function convertPrayerTimeToDate(prayerTime: string, baseDate: Date): Date {
@@ -32,7 +33,7 @@ function formatRemainingTime(ms: number): string {
 export function getPrayerTimes(prayerTimes: Record<string, string>): PrayerTimeInfo {
   const now = new Date();
   const prayers = Object.entries(prayerTimes)
-    .filter(([name]) => name !== 'Sunrise' && name !== 'Ishraq' && name !== 'Zawal') // Exclude non-prayer times
+    .filter(([name]) => name !== 'Ishraq') // Only exclude Ishraq, keep Sunrise and Zawal for time calculations
     .map(([name, time]) => {
       const date = convertPrayerTimeToDate(time, now);
       // If prayer time has passed today, add it for tomorrow
@@ -53,10 +54,29 @@ export function getPrayerTimes(prayerTimes: Record<string, string>): PrayerTimeI
   // Calculate time until current prayer ends (which is when next prayer starts)
   const timeUntilEnd = nextPrayer.date.getTime() - now.getTime();
   
+  // Calculate total duration of current prayer period
+  const previousPrayerIndex = prayers.indexOf(currentPrayer);
+  const nextPrayerIndex = prayers.indexOf(nextPrayer);
+  
+  let totalDuration: number;
+  
+  if (previousPrayerIndex === prayers.length - 1 && nextPrayerIndex === 0) {
+    // If current prayer is the last one and next is the first one (overnight)
+    const nextDay = new Date(nextPrayer.date);
+    nextDay.setDate(nextDay.getDate() - 1);
+    totalDuration = nextPrayer.date.getTime() - nextDay.getTime();
+  } else {
+    totalDuration = nextPrayer.date.getTime() - currentPrayer.date.getTime();
+  }
+  
+  // Calculate percentage of time remaining
+  const percentageRemaining = (timeUntilEnd / totalDuration) * 100;
+  
   return {
     name: currentPrayer.name,
     remainingTime: formatRemainingTime(timeUntilEnd),
     timeInMs: timeUntilEnd,
-    isCurrentPrayer: true
+    isCurrentPrayer: true,
+    percentageRemaining
   };
 } 

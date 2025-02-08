@@ -45,7 +45,7 @@ export function calculatePrayerTime(
   const C = -Math.asin(value);
   const C_degrees = radiansToDegrees(C);
 
-  const sqrtE = Math.sqrt(coordinates.altitude + 40);
+  const sqrtE = Math.sqrt(coordinates.altitude);
   const latRad = coordinates.latitude * (Math.PI / 180);
 
   let tanValue;
