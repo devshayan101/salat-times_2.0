@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PrayerTimeInfo } from '../utils/timeUtils';
+import { Ionicons } from '@expo/vector-icons';
 
 interface PrayerCardProps {
   name: string;
@@ -13,6 +14,8 @@ interface PrayerCardProps {
   onAsrPress?: () => void;
   onIshaPress?: () => void;
   currentPrayer?: PrayerTimeInfo | null;
+  soundEnabled?: boolean;
+  onSoundToggle?: () => void;
 }
 
 export const PrayerCard = React.memo(({ 
@@ -24,7 +27,9 @@ export const PrayerCard = React.memo(({
   ishaMethod = 1,
   onAsrPress,
   onIshaPress,
-  currentPrayer
+  currentPrayer,
+  soundEnabled = true,
+  onSoundToggle
 }: PrayerCardProps) => {
   const displayName = isAsr 
     ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})`
@@ -40,6 +45,9 @@ export const PrayerCard = React.memo(({
     : name;
 
   const isCurrentPrayer = currentPrayer?.name === name;
+  
+  // Only show sound toggle for main prayers
+  const isMainPrayer = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(name);
 
   return (
     <Pressable 
@@ -64,7 +72,26 @@ export const PrayerCard = React.memo(({
           )}
         </View>
         <View style={styles.timeContainer}>
-          <Text style={styles.prayerTime}>{time}</Text>
+          <View style={styles.timeRow}>
+            <Text style={styles.prayerTime}>{time}</Text>
+            {isMainPrayer && onSoundToggle && (
+              <Pressable
+                onPress={(e) => {
+                  // Stop event propagation to parent pressable
+                  e.stopPropagation();
+                  onSoundToggle();
+                }}
+                style={styles.soundButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons 
+                  name={soundEnabled ? "volume-high" : "volume-mute"} 
+                  size={24} 
+                  color={soundEnabled ? "#60A5FA" : "#9CA3AF"}
+                />
+              </Pressable>
+            )}
+          </View>
           {isCurrentPrayer && currentPrayer && (
             <Text style={styles.countdownText}>
               Time remaining: {currentPrayer.remainingTime}
@@ -120,6 +147,11 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 4,
   },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   prayerTime: {
     color: '#60A5FA',
     fontSize: 24,
@@ -134,5 +166,8 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontSize: 14,
     fontWeight: '500',
+  },
+  soundButton: {
+    padding: 4,
   },
 }); 

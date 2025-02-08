@@ -28,7 +28,9 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "WAKE_LOCK"
       ]
     },
     "web": {
@@ -38,7 +40,21 @@
     },
     "plugins": [
       "expo-router",
-      "expo-location"
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow SalatTimes to use your location for accurate prayer times.",
+          "locationAlwaysPermission": "Allow SalatTimes to use your location for accurate prayer times.",
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#10B981"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -51,6 +67,32 @@
       "eas": {
         "projectId": "580e5ef9-0826-4e2a-a631-aeea5674c124"
       }
+    },
+    "notification": {
+      "icon": "./assets/images/icon.png",
+      "color": "#10B981",
+      "sounds": [
+        {
+          "name": "fajr",
+          "file": "./assets/sounds/fajr.mp3"
+        },
+        {
+          "name": "dhuhr",
+          "file": "./assets/sounds/dhuhr.mp3"
+        },
+        {
+          "name": "asr",
+          "file": "./assets/sounds/asr.mp3"
+        },
+        {
+          "name": "maghrib",
+          "file": "./assets/sounds/maghrib.mp3"
+        },
+        {
+          "name": "isha",
+          "file": "./assets/sounds/isha.mp3"
+        }
+      ]
     }
   }
 }

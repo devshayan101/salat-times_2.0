@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable, AppState } from 'react-native';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { Audio } from 'expo-av';
 
 import { PrayerTimes, Coordinates } from '../types';
@@ -11,13 +12,19 @@ import {
   schedulePrayerNotifications, 
   showRemainingTimeNotification,
   updateCountdownNotification,
-  clearCountdownNotifications
+  clearCountdownNotifications,
+  requestNotificationPermissions,
+  NOTIFICATION_SOUNDS
 } from '../services/notificationService';
 import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { AsrMethodModal } from '../components/AsrMethodModal';
 import { IshaMethodModal } from '../components/IshaMethodModal';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
+import * as Notifications from 'expo-notifications';
+
+// Constants for storage keys
+const PRAYER_SOUNDS_STORAGE_KEY = 'prayer_sounds_preferences';
 
 const TimerSection = ({ currentPrayer, location }: { currentPrayer: PrayerTimeInfo | null, location: Location.LocationObject | null }) => {
   const timezoneOffset = -(new Date().getTimezoneOffset() / 60);
@@ -70,6 +77,16 @@ export default function PrayerTimesScreen() {
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
   const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
   const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
+  const [appState, setAppState] = useState(AppState.currentState);
+  
+  // Add state for prayer sound preferences
+  const [prayerSounds, setPrayerSounds] = useState<{[key: string]: boolean}>({
+    Fajr: true,
+    Dhuhr: true,
+    Asr: true,
+    Maghrib: true,
+    Isha: true
+  });
   
   // Ref to track if notification has been shown for current prayer
   const notificationShownRef = useRef<{[key: string]: boolean}>({});
@@ -77,6 +94,87 @@ export default function PrayerTimesScreen() {
   const currentNotificationPrayerRef = useRef<string>('');
   // Ref to track last update time to limit the frequency of notification updates
   const lastNotificationUpdateRef = useRef<number>(0);
+  
+  // Add the notification permission request at the beginning of the component...
+  const notificationsEnabledRef = useRef<boolean>(false);
+  
+  // Load saved sound preferences when app starts
+  useEffect(() => {
+    const loadSoundPreferences = async () => {
+      try {
+        const savedPreferences = await AsyncStorage.getItem(PRAYER_SOUNDS_STORAGE_KEY);
+        if (savedPreferences) {
+          const parsedPreferences = JSON.parse(savedPreferences);
+          setPrayerSounds(parsedPreferences);
+          console.log('Loaded sound preferences:', parsedPreferences);
+        } else {
+          console.log('Using default sound preferences');
+        }
+      } catch (error) {
+        console.error('Error loading sound preferences:', error);
+      }
+    };
+    
+    loadSoundPreferences();
+  }, []);
+  
+  // Save sound preferences when they change
+  useEffect(() => {
+    const saveSoundPreferences = async () => {
+      try {
+        await AsyncStorage.setItem(PRAYER_SOUNDS_STORAGE_KEY, JSON.stringify(prayerSounds));
+        console.log('Sound preferences saved:', prayerSounds);
+      } catch (error) {
+        console.error('Error saving sound preferences:', error);
+      }
+    };
+    
+    saveSoundPreferences();
+  }, [prayerSounds]);
+
+  // Function to toggle sound for a specific prayer
+  const togglePrayerSound = (prayerName: string) => {
+    setPrayerSounds(prev => ({
+      ...prev,
+      [prayerName]: !prev[prayerName]
+    }));
+  };
+  
+  // Initialize notifications
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        // Set up notification channels first
+        await setNotificationChannel();
+        console.log('✅ Notification channels successfully created');
+        
+        // Request notification permissions
+        const permissionGranted = await requestNotificationPermissions();
+        console.log('✅ Notification permission status:', permissionGranted);
+        
+        // Update state and ref for notifications enabled
+        if (permissionGranted) {
+          // Clear any existing notifications
+          await clearCountdownNotifications();
+          
+          // Only update the state - don't show test notifications
+          setNotificationsEnabled(true);
+          notificationsEnabledRef.current = true;
+          console.log('✅ Notifications enabled');
+        } else {
+          console.warn('⚠️ Notification permissions not granted');
+          setNotificationsEnabled(false);
+          notificationsEnabledRef.current = false;
+        }
+      } catch (error) {
+        console.error('❌ Error initializing notifications:', error);
+        setNotificationsEnabled(false);
+        notificationsEnabledRef.current = false;
+      }
+    };
+    
+    initializeNotifications();
+  }, []);
   
   //make 'hanafi' color blue - denoting hyperlink - ok
   //Add Ishraq time. - ok
@@ -99,7 +197,7 @@ export default function PrayerTimesScreen() {
       const times = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
       setPrayerTimes(times);
       if (notificationsEnabled) {
-        await schedulePrayerNotifications(times, date);
+        await schedulePrayerNotifications(times, date, prayerSounds);
       }
     } catch (err) {
       console.error('Error updating prayer times:', err);
@@ -178,56 +276,133 @@ export default function PrayerTimesScreen() {
     setSelectedDate(currentDate);
   };
 
-  // Add countdown timer effect
+  // Add app state change listener
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      // When app comes to foreground
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        // Update notifications immediately when app comes to foreground
+        if (currentNotificationPrayerRef.current && prayerTimes) {
+          const current = getPrayerTimes(prayerTimes);
+          if (current.name === currentNotificationPrayerRef.current) {
+            updateCountdownNotification(current.name, current.remainingTime);
+          }
+        }
+      }
+      
+      // Update app state
+      setAppState(nextAppState);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [appState, prayerTimes]);
+
+  // Update the countdown timer effect to detect prayer changes and show notifications with sound preferences
   useEffect(() => {
     let timer: NodeJS.Timeout;
+    let lastPrayerName = '';
     
     if (prayerTimes) {
       const updateCurrentPrayer = () => {
         const current = getPrayerTimes(prayerTimes);
         setCurrentPrayer(current);
         
-        // Skip non-prayer times for notifications
-        const isPrayerTime = current && 
-          current.name !== 'Sunrise' && 
-          current.name !== 'Zawal Time' &&
-          current.name !== 'Ishraq';
+        // Only main prayers should trigger notifications
+        const isMainPrayer = current && 
+          ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(current.name);
         
-        if (isPrayerTime && notificationsEnabled) {
-          // Check if we need to show a notification for 20% time remaining
-          if (current.percentageRemaining <= 20 && 
-              current.percentageRemaining > 0 &&
-              !notificationShownRef.current[current.name]) {
+        // If prayer changed, we should notify for the new prayer
+        if (lastPrayerName !== '' && lastPrayerName !== current.name) {
+          console.log(`Prayer changed from ${lastPrayerName} to ${current.name}`);
+          
+          // Clear previous notifications
+          clearCountdownNotifications();
+          notificationShownRef.current = {};
+          
+          // If this is a main prayer, show notification for prayer change
+          if (isMainPrayer && notificationsEnabled) {
+            // Get sound preference for this prayer
+            const soundEnabled = prayerSounds[current.name] !== undefined 
+              ? prayerSounds[current.name] 
+              : true;
+              
+            // New prayer started notification
+            Notifications.scheduleNotificationAsync({
+              content: {
+                title: `${current.name} Prayer Time`,
+                body: `It's time for ${current.name} prayer`,
+                sound: soundEnabled ? NOTIFICATION_SOUNDS[current.name] || NOTIFICATION_SOUNDS.default : false,
+                priority: 'high',
+                ...(Platform.OS === 'android' && {
+                  android: {
+                    channelId: 'prayer-times',
+                    smallIcon: '@drawable/ic_notification',
+                    color: '@color/notification_color',
+                    priority: 'max'
+                  }
+                })
+              },
+              trigger: null, // Immediate
+            });
+            
+            console.log(`Notification shown for new prayer: ${current.name} (sound: ${soundEnabled ? 'on' : 'off'})`);
+          }
+        }
+        
+        // Update last prayer name
+        lastPrayerName = current.name;
+        
+        // Show remaining time notification if enabled
+        if (isMainPrayer && notificationsEnabled) {
+          const now = Date.now();
+          
+          // Check if we need to show a notification for remaining time
+          if (!notificationShownRef.current[current.name]) {
+            console.log(`Setting up notification for ${current.name}`);
             
             // Mark this prayer as having shown a notification
             notificationShownRef.current[current.name] = true;
             currentNotificationPrayerRef.current = current.name;
             
-            // Show the initial notification with remaining time
-            showRemainingTimeNotification(current.name, current.remainingTime);
-          }
-          
-          // Update the countdown notification if we've shown one for this prayer
-          // but limit updates to once per second to avoid excessive updates
-          const now = Date.now();
-          if (currentNotificationPrayerRef.current === current.name && 
-              now - lastNotificationUpdateRef.current >= 1000) {
-            updateCountdownNotification(current.name, current.remainingTime);
+            // Calculate end time for the prayer (when the next prayer starts)
+            const endTimeMs = Date.now() + current.timeInMs;
+            
+            // Get sound preference for this prayer
+            const soundEnabled = prayerSounds[current.name] !== undefined 
+              ? prayerSounds[current.name] 
+              : true;
+            
+            // Show notification with remaining time
+            showRemainingTimeNotification(current.name, current.remainingTime, endTimeMs, soundEnabled);
+            
+            // Start regular updates for foreground or when app state changes
             lastNotificationUpdateRef.current = now;
           }
-        }
-        
-        // Reset notification flags when prayer changes
-        if (current && currentNotificationPrayerRef.current && 
-            currentNotificationPrayerRef.current !== current.name) {
-          // Clear notifications when prayer changes
+          
+          // Update the countdown notification regularly
+          const updateInterval = appState === 'active' ? 1000 : 15000; // 1 sec in foreground, 15 sec in background
+          
+          if (currentNotificationPrayerRef.current === current.name && 
+              now - lastNotificationUpdateRef.current >= updateInterval) {
+            updateCountdownNotification(current.name, current.remainingTime);
+            lastNotificationUpdateRef.current = now;
+            
+            console.log(`Updating notification: ${current.name} - ${current.remainingTime} (${appState})`);
+          }
+        } else if (!isMainPrayer && currentNotificationPrayerRef.current) {
+          // Clear notifications when not in prayer time
           clearCountdownNotifications();
           notificationShownRef.current = {};
           currentNotificationPrayerRef.current = '';
+          console.log('Cleared notifications - not in prayer time');
         }
       };
       
       updateCurrentPrayer();
+      
+      // Use a shorter interval to keep UI responsive
       timer = setInterval(updateCurrentPrayer, 1000);
     }
     
@@ -238,7 +413,7 @@ export default function PrayerTimesScreen() {
       // Clear notifications when component unmounts
       clearCountdownNotifications();
     };
-  }, [prayerTimes, notificationsEnabled]);
+  }, [prayerTimes, notificationsEnabled, appState, prayerSounds]);
 
   if (loading) {
     return (
@@ -300,7 +475,12 @@ export default function PrayerTimesScreen() {
         setNotificationsEnabled={setNotificationsEnabled}
         prayerTimes={prayerTimes}
         selectedDate={selectedDate}
+        prayerSounds={prayerSounds}
       />
+      
+      <Text style={styles.helpText}>
+        Tap the sound icon on each prayer card to enable or disable notification sounds.
+      </Text>
 
       <Pressable
         style={styles.dateButton}
@@ -312,11 +492,23 @@ export default function PrayerTimesScreen() {
 
       {prayerTimes && (
         <>
-          <PrayerCard name="Fajr" time={prayerTimes.Fajr} currentPrayer={currentPrayer} />
+          <PrayerCard 
+            name="Fajr" 
+            time={prayerTimes.Fajr} 
+            currentPrayer={currentPrayer} 
+            soundEnabled={prayerSounds.Fajr}
+            onSoundToggle={() => togglePrayerSound('Fajr')}
+          />
           <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} currentPrayer={currentPrayer} />
           <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} currentPrayer={currentPrayer} />
           <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} currentPrayer={currentPrayer} />
-          <PrayerCard name="Dhuhr" time={prayerTimes.Dhuhr} currentPrayer={currentPrayer} />
+          <PrayerCard 
+            name="Dhuhr" 
+            time={prayerTimes.Dhuhr} 
+            currentPrayer={currentPrayer} 
+            soundEnabled={prayerSounds.Dhuhr}
+            onSoundToggle={() => togglePrayerSound('Dhuhr')}
+          />
           <PrayerCard 
             name="Asr" 
             time={prayerTimes.Asr} 
@@ -324,8 +516,16 @@ export default function PrayerTimesScreen() {
             asrMethod={asrMethod}
             onAsrPress={() => setShowAsrModal(true)}
             currentPrayer={currentPrayer}
+            soundEnabled={prayerSounds.Asr}
+            onSoundToggle={() => togglePrayerSound('Asr')}
           />
-          <PrayerCard name="Maghrib" time={prayerTimes.Maghrib} currentPrayer={currentPrayer} />
+          <PrayerCard 
+            name="Maghrib" 
+            time={prayerTimes.Maghrib} 
+            currentPrayer={currentPrayer} 
+            soundEnabled={prayerSounds.Maghrib}
+            onSoundToggle={() => togglePrayerSound('Maghrib')}
+          />
           <PrayerCard 
             name="Isha" 
             time={prayerTimes.Isha} 
@@ -333,6 +533,8 @@ export default function PrayerTimesScreen() {
             ishaMethod={ishaMethod}
             onIshaPress={() => setShowIshaModal(true)}
             currentPrayer={currentPrayer}
+            soundEnabled={prayerSounds.Isha}
+            onSoundToggle={() => togglePrayerSound('Isha')}
           />
         </>
       )}
@@ -447,5 +649,10 @@ const styles = StyleSheet.create({
     color: '#F3F4F6',
     fontSize: 14,
     fontWeight: '600',
+  },
+  helpText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 20,
   },
 });

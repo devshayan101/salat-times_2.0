@@ -1,44 +1,50 @@
 import React from 'react';
-import { View, Text, StyleSheet, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, Switch, Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { PrayerTimes } from '../types';
-import { schedulePrayerNotifications } from '../services/notificationService';
+import { schedulePrayerNotifications, clearCountdownNotifications } from '../services/notificationService';
 
 interface NotificationToggleProps {
   notificationsEnabled: boolean;
   setNotificationsEnabled: (enabled: boolean) => void;
   prayerTimes: PrayerTimes | null;
   selectedDate: Date;
+  prayerSounds?: {[key: string]: boolean};
 }
 
 export const NotificationToggle = React.memo(({ 
   notificationsEnabled, 
   setNotificationsEnabled,
   prayerTimes,
-  selectedDate
+  selectedDate,
+  prayerSounds = {}
 }: NotificationToggleProps) => {
-  const handleNotificationToggle = async (value: boolean) => {
+  const toggleNotifications = async () => {
     try {
-      if (Platform.OS === 'web') {
-        alert('Notifications are not supported on web platforms');
-        return;
-      }
-
-      if (value) {
+      if (!notificationsEnabled) {
+        // User is enabling notifications
         const { status } = await Notifications.requestPermissionsAsync();
-        if (status === 'granted') {
-          setNotificationsEnabled(true);
-          if (prayerTimes) {
-            await schedulePrayerNotifications(prayerTimes, selectedDate);
-          }
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Please enable notifications in your device settings.');
+          return;
+        }
+        
+        // Set notifications enabled first
+        setNotificationsEnabled(true);
+        
+        // This will now schedule only the current prayer notification
+        if (prayerTimes) {
+          await schedulePrayerNotifications(prayerTimes, selectedDate, prayerSounds);
         }
       } else {
+        // User is disabling notifications
         await Notifications.cancelAllScheduledNotificationsAsync();
+        await clearCountdownNotifications();
         setNotificationsEnabled(false);
       }
     } catch (error) {
       console.error('Error toggling notifications:', error);
-      setNotificationsEnabled(false);
+      Alert.alert('Error', 'Failed to toggle notifications. Please try again.');
     }
   };
 
@@ -51,7 +57,12 @@ export const NotificationToggle = React.memo(({
       <Text style={styles.notificationText}>Salat Time Notifications</Text>
       <Switch
         value={notificationsEnabled}
-        onValueChange={handleNotificationToggle}
+        onValueChange={(value) => {
+          // Only proceed if the value is changing
+          if (value !== notificationsEnabled) {
+            toggleNotifications();
+          }
+        }}
         trackColor={{ false: '#4B5563', true: '#4B5563' }}
         thumbColor={notificationsEnabled ? '#60A5FA' : '#9CA3AF'}
       />
