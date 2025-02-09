@@ -34,6 +34,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="tasbih"
+        options={{
+          title: 'Tasbih',
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="finger-print" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

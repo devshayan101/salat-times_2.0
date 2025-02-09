@@ -5,7 +5,8 @@ import Svg, { Path } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   withSpring,
-  withTiming,
+  useSharedValue,
+  runOnJS,
 } from 'react-native-reanimated';
 
 const KAABA_COORDS = {
@@ -15,10 +16,14 @@ const KAABA_COORDS = {
 
 export default function QiblaScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const [qiblaDirection, setQiblaDirection] = useState<number>(0);
+  const qiblaDirectionValue = useSharedValue(0);
+  const headingValue = useSharedValue(0);
+  const [heading, setHeading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let headingSubscription: Location.LocationSubscription | null = null;
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -39,18 +44,46 @@ export default function QiblaScreen() {
         const y = Math.sin(lon2 - lon1);
         const x = Math.cos(lat1) * Math.tan(lat2) - Math.sin(lat1) * Math.cos(lon2 - lon1);
         const qibla = Math.atan2(y, x) * (180 / Math.PI);
-        setQiblaDirection(qibla);
+        qiblaDirectionValue.value = qibla;
+
+        // Start watching heading
+        headingSubscription = await startWatchingHeading();
       } catch (err) {
         setError('Failed to determine Qibla direction');
       }
     })();
+
+    return () => {
+      // Clean up the heading subscription when component unmounts
+      if (headingSubscription) {
+        headingSubscription.remove();
+      }
+    };
   }, []);
 
+  const startWatchingHeading = async () => {
+    try {
+      return await Location.watchHeadingAsync((headingData) => {
+        const newHeading = headingData.trueHeading || headingData.magHeading;
+        setHeading(newHeading);
+        headingValue.value = newHeading;
+      });
+    } catch (err) {
+      setError('Failed to access compass. Please check if your device has a compass sensor.');
+      return null;
+    }
+  };
+
   const animatedStyle = useAnimatedStyle(() => {
+    // Calculate rotation directly in the worklet
+    const rotationDegrees = heading === null 
+      ? qiblaDirectionValue.value 
+      : qiblaDirectionValue.value - headingValue.value;
+    
     return {
       transform: [
         {
-          rotate: withSpring(`${qiblaDirection}deg`, {
+          rotate: withSpring(`${rotationDegrees}deg`, {
             damping: 20,
             stiffness: 90,
           }),
@@ -72,9 +105,43 @@ export default function QiblaScreen() {
       <Text style={styles.title}>Qibla Direction</Text>
       <View style={styles.compassContainer}>
         <Animated.View style={[styles.compass, animatedStyle]}>
-          <Svg height="200" width="200" viewBox="0 0 24 24">
+          <Svg height="200" width="200" viewBox="0 0 100 100">
+            {/* Kaaba Icon */}
             <Path
-              d="M12 2L8 12L12 22L16 12L12 2Z"
+              d="M30 30 L70 30 L70 70 L30 70 Z"
+              fill="#000000"
+              stroke="#000000"
+              strokeWidth="2"
+            />
+            {/* Kaaba Door */}
+            <Path
+              d="M45 70 L45 55 L55 55 L55 70"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="2"
+            />
+            {/* Kiswa Pattern - Gold Decoration */}
+            <Path
+              d="M30 40 L70 40"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            <Path
+              d="M30 50 L70 50"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            <Path
+              d="M30 60 L70 60"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            {/* Direction Indicator */}
+            <Path
+              d="M50 10 L45 25 L50 20 L55 25 Z"
               fill="#60A5FA"
               stroke="#1F2937"
               strokeWidth="1"
@@ -87,9 +154,17 @@ export default function QiblaScreen() {
           ? `📍 ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`
           : 'Determining location...'}
       </Text>
-      {qiblaDirection && (
-        <Text style={styles.degrees}>{Math.round(qiblaDirection)}° from North</Text>
+      <Text style={styles.degrees}>
+        {qiblaDirectionValue ? `${Math.round(qiblaDirectionValue.value)}° from North` : ''}
+      </Text>
+      {heading !== null && (
+        <Text style={styles.heading}>
+          Compass heading: {Math.round(heading)}°
+        </Text>
       )}
+      <Text style={styles.instructions}>
+        The arrow will automatically point to the Qibla direction as you rotate your device
+      </Text>
     </View>
   );
 }
@@ -127,6 +202,8 @@ const styles = StyleSheet.create({
   compass: {
     width: 200,
     height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   coordinates: {
     marginTop: 40,
@@ -139,6 +216,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#60A5FA',
+  },
+  heading: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#9CA3AF',
+  },
+  instructions: {
+    marginTop: 20,
+    color: '#D1D5DB',
+    textAlign: 'center',
+    fontSize: 14,
+    paddingHorizontal: 20,
   },
   errorText: {
     color: '#EF4444',

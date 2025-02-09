@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Switch, Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { PrayerTimes } from '../types';
+import { PrayerTimes, PrayerSoundPreferences } from '../types';
 import { schedulePrayerNotifications, clearCountdownNotifications } from '../services/notificationService';
 
 interface NotificationToggleProps {
@@ -9,7 +9,7 @@ interface NotificationToggleProps {
   setNotificationsEnabled: (enabled: boolean) => void;
   prayerTimes: PrayerTimes | null;
   selectedDate: Date;
-  prayerSounds?: {[key: string]: boolean};
+  prayerSounds?: PrayerSoundPreferences;
 }
 
 export const NotificationToggle = React.memo(({ 
@@ -17,7 +17,13 @@ export const NotificationToggle = React.memo(({
   setNotificationsEnabled,
   prayerTimes,
   selectedDate,
-  prayerSounds = {}
+  prayerSounds = {
+    Fajr: { enabled: true, sound: 'default_beep' },
+    Dhuhr: { enabled: true, sound: 'default_beep' },
+    Asr: { enabled: true, sound: 'default_beep' },
+    Maghrib: { enabled: true, sound: 'default_beep' },
+    Isha: { enabled: true, sound: 'default_beep' }
+  }
 }: NotificationToggleProps) => {
   const toggleNotifications = async () => {
     try {

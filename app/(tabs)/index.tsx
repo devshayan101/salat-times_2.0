@@ -5,7 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { Audio } from 'expo-av';
 
-import { PrayerTimes, Coordinates } from '../types';
+import { PrayerTimes, Coordinates, PrayerSoundPreferences } from '../types';
 import { calculatePrayerTimes } from '../services/prayerTimeCalculator';
 import { 
   setNotificationChannel, 
@@ -20,6 +20,7 @@ import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
 import { AsrMethodModal } from '../components/AsrMethodModal';
 import { IshaMethodModal } from '../components/IshaMethodModal';
+import { SoundSelectionModal } from '../components/SoundSelectionModal';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
 import * as Notifications from 'expo-notifications';
 
@@ -79,13 +80,17 @@ export default function PrayerTimesScreen() {
   const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
   const [appState, setAppState] = useState(AppState.currentState);
   
+  // Add state for sound selection modal
+  const [showSoundModal, setShowSoundModal] = useState(false);
+  const [selectedPrayerForSound, setSelectedPrayerForSound] = useState<string>('');
+  
   // Add state for prayer sound preferences
-  const [prayerSounds, setPrayerSounds] = useState<{[key: string]: boolean}>({
-    Fajr: true,
-    Dhuhr: true,
-    Asr: true,
-    Maghrib: true,
-    Isha: true
+  const [prayerSounds, setPrayerSounds] = useState<PrayerSoundPreferences>({
+    Fajr: { enabled: true, sound: 'default_beep' },
+    Dhuhr: { enabled: true, sound: 'default_beep' },
+    Asr: { enabled: true, sound: 'default_beep' },
+    Maghrib: { enabled: true, sound: 'default_beep' },
+    Isha: { enabled: true, sound: 'default_beep' }
   });
   
   // Ref to track if notification has been shown for current prayer
@@ -136,8 +141,33 @@ export default function PrayerTimesScreen() {
   const togglePrayerSound = (prayerName: string) => {
     setPrayerSounds(prev => ({
       ...prev,
-      [prayerName]: !prev[prayerName]
+      [prayerName]: {
+        ...prev[prayerName],
+        enabled: !prev[prayerName].enabled
+      }
     }));
+  };
+  
+  // Function to change the sound for a specific prayer
+  const changePrayerSound = (prayerName: string, sound: string) => {
+    console.log(`Changing sound for ${prayerName} to: ${sound}`);
+    setPrayerSounds(prev => {
+      const updated = {
+        ...prev,
+        [prayerName]: {
+          ...prev[prayerName],
+          sound: sound
+        }
+      };
+      console.log('Updated sound preferences:', updated);
+      return updated;
+    });
+  };
+  
+  // Function to open sound selection modal
+  const openSoundSelection = (prayerName: string) => {
+    setSelectedPrayerForSound(prayerName);
+    setShowSoundModal(true);
   };
   
   // Initialize notifications
@@ -180,9 +210,10 @@ export default function PrayerTimesScreen() {
   //Add Ishraq time. - ok
   //Time remaining for prayer. - ok
   //Nemaz time remainig counter - ok
-  //Give notification when 20% of time is left
-  //tasbih counter
-  //Qibla direction with compass
+  //Nemaz time remainig counter in notification- ok
+  //Give notification when 20% of time is left - ok
+  //Qibla direction with compass - ok
+  //tasbih counter - ok
   //Advert page - option to push Advert to Advert page.
   //Custom message page - option to push message to page.
 
@@ -324,16 +355,14 @@ export default function PrayerTimesScreen() {
           // If this is a main prayer, show notification for prayer change
           if (isMainPrayer && notificationsEnabled) {
             // Get sound preference for this prayer
-            const soundEnabled = prayerSounds[current.name] !== undefined 
-              ? prayerSounds[current.name] 
-              : true;
+            const soundPreference = prayerSounds[current.name];
               
             // New prayer started notification
             Notifications.scheduleNotificationAsync({
               content: {
                 title: `${current.name} Prayer Time`,
                 body: `It's time for ${current.name} prayer`,
-                sound: soundEnabled ? NOTIFICATION_SOUNDS[current.name] || NOTIFICATION_SOUNDS.default : false,
+                sound: soundPreference.enabled ? soundPreference.sound : false,
                 priority: 'high',
                 ...(Platform.OS === 'android' && {
                   android: {
@@ -347,7 +376,7 @@ export default function PrayerTimesScreen() {
               trigger: null, // Immediate
             });
             
-            console.log(`Notification shown for new prayer: ${current.name} (sound: ${soundEnabled ? 'on' : 'off'})`);
+            console.log(`Notification shown for new prayer: ${current.name} (sound: ${soundPreference.enabled ? soundPreference.sound : 'off'})`);
           }
         }
         
@@ -370,12 +399,20 @@ export default function PrayerTimesScreen() {
             const endTimeMs = Date.now() + current.timeInMs;
             
             // Get sound preference for this prayer
-            const soundEnabled = prayerSounds[current.name] !== undefined 
-              ? prayerSounds[current.name] 
-              : true;
+            const soundPreference = prayerSounds[current.name];
+            console.log(`Using sound preference for ${current.name}:`, 
+              soundPreference.enabled ? 
+                `Sound: ${soundPreference.sound}` : 
+                'Sound disabled');
             
             // Show notification with remaining time
-            showRemainingTimeNotification(current.name, current.remainingTime, endTimeMs, soundEnabled);
+            showRemainingTimeNotification(
+              current.name, 
+              current.remainingTime, 
+              endTimeMs, 
+              soundPreference.enabled,
+              soundPreference.sound
+            );
             
             // Start regular updates for foreground or when app state changes
             lastNotificationUpdateRef.current = now;
@@ -480,6 +517,7 @@ export default function PrayerTimesScreen() {
       
       <Text style={styles.helpText}>
         Tap the sound icon on each prayer card to enable or disable notification sounds.
+        Long press the sound icon to select a different sound for notifications.
       </Text>
 
       <Pressable
@@ -496,8 +534,10 @@ export default function PrayerTimesScreen() {
             name="Fajr" 
             time={prayerTimes.Fajr} 
             currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Fajr}
+            soundEnabled={prayerSounds.Fajr.enabled}
+            soundType={prayerSounds.Fajr.sound}
             onSoundToggle={() => togglePrayerSound('Fajr')}
+            onSoundLongPress={() => openSoundSelection('Fajr')}
           />
           <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} currentPrayer={currentPrayer} />
           <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} currentPrayer={currentPrayer} />
@@ -506,8 +546,10 @@ export default function PrayerTimesScreen() {
             name="Dhuhr" 
             time={prayerTimes.Dhuhr} 
             currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Dhuhr}
+            soundEnabled={prayerSounds.Dhuhr.enabled}
+            soundType={prayerSounds.Dhuhr.sound}
             onSoundToggle={() => togglePrayerSound('Dhuhr')}
+            onSoundLongPress={() => openSoundSelection('Dhuhr')}
           />
           <PrayerCard 
             name="Asr" 
@@ -516,15 +558,19 @@ export default function PrayerTimesScreen() {
             asrMethod={asrMethod}
             onAsrPress={() => setShowAsrModal(true)}
             currentPrayer={currentPrayer}
-            soundEnabled={prayerSounds.Asr}
+            soundEnabled={prayerSounds.Asr.enabled}
+            soundType={prayerSounds.Asr.sound}
             onSoundToggle={() => togglePrayerSound('Asr')}
+            onSoundLongPress={() => openSoundSelection('Asr')}
           />
           <PrayerCard 
             name="Maghrib" 
             time={prayerTimes.Maghrib} 
             currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Maghrib}
+            soundEnabled={prayerSounds.Maghrib.enabled}
+            soundType={prayerSounds.Maghrib.sound}
             onSoundToggle={() => togglePrayerSound('Maghrib')}
+            onSoundLongPress={() => openSoundSelection('Maghrib')}
           />
           <PrayerCard 
             name="Isha" 
@@ -533,8 +579,10 @@ export default function PrayerTimesScreen() {
             ishaMethod={ishaMethod}
             onIshaPress={() => setShowIshaModal(true)}
             currentPrayer={currentPrayer}
-            soundEnabled={prayerSounds.Isha}
+            soundEnabled={prayerSounds.Isha.enabled}
+            soundType={prayerSounds.Isha.sound}
             onSoundToggle={() => togglePrayerSound('Isha')}
+            onSoundLongPress={() => openSoundSelection('Isha')}
           />
         </>
       )}
@@ -556,6 +604,17 @@ export default function PrayerTimesScreen() {
         onMethodChange={(method) => {
           setIshaMethod(method);
           setShowIshaModal(false);
+        }}
+      />
+
+      <SoundSelectionModal
+        visible={showSoundModal}
+        onClose={() => setShowSoundModal(false)}
+        prayerName={selectedPrayerForSound}
+        currentSound={selectedPrayerForSound ? prayerSounds[selectedPrayerForSound].sound : 'default_beep'}
+        onSoundChange={(sound) => {
+          changePrayerSound(selectedPrayerForSound, sound);
+          setShowSoundModal(false);
         }}
       />
     </ScrollView>

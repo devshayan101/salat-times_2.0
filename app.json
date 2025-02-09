@@ -73,6 +73,10 @@
       "color": "#10B981",
       "sounds": [
         {
+          "name": "default_beep",
+          "file": "./assets/sounds/beep.mp3"
+        },
+        {
           "name": "fajr",
           "file": "./assets/sounds/fajr.mp3"
         },

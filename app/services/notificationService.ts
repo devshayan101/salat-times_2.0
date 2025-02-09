@@ -1,20 +1,39 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { PrayerTimes } from '../types';
+import { PrayerTimes, PrayerSoundPreference, PrayerSoundPreferences } from '../types';
 
 // Fixed notification IDs to maintain persistence
 const PRAYER_NOTIFICATION_ID = 'prayer-countdown';
 const PRAYER_ALERT_NOTIFICATION_ID = 'prayer-alert';
 
 // Sound file constants - reference the sounds defined in app.json
-export const NOTIFICATION_SOUNDS: { [key: string]: string } = {
+export const NOTIFICATION_SOUNDS: { [key: string]: string | null } = {
   default: 'default',
-  Fajr: 'fajr',
-  Dhuhr: 'dhuhr',
-  Asr: 'asr',
-  Maghrib: 'maghrib',
-  Isha: 'isha'
+  default_beep: 'default_beep',
+  fajr: 'fajr',
+  dhuhr: 'dhuhr',
+  asr: 'asr',
+  maghrib: 'maghrib',
+  isha: 'isha',
+  none: null // For silent notifications
 };
+
+// Available sound options for prayer notifications
+export const SOUND_OPTIONS = [
+  { label: 'System Default', value: 'default' },
+  { label: 'Beep (Default)', value: 'default_beep' },
+  { label: 'Fajr Recitation', value: 'fajr' },
+  { label: 'Dhuhr Recitation', value: 'dhuhr' },
+  { label: 'Asr Recitation', value: 'asr' },
+  { label: 'Maghrib Recitation', value: 'maghrib' },
+  { label: 'Isha Recitation', value: 'isha' },
+  { label: 'None (Silent)', value: 'none' }
+];
+
+// Function to get available sound options
+export function getSoundOptions() {
+  return SOUND_OPTIONS;
+}
 
 // Configure notifications
 Notifications.setNotificationHandler({
@@ -103,27 +122,35 @@ export async function showRemainingTimeNotification(
   prayerName: string, 
   remainingTime: string, 
   endTimeMs: number,
-  soundEnabled: boolean = true
+  soundEnabled: boolean = true,
+  soundName: string = 'default_beep'
 ) {
   if (Platform.OS === 'web') return;
   
   try {
+    // Resolve the sound value from our mapping
+    const actualSound = soundEnabled ? 
+      (soundName === 'none' ? false : NOTIFICATION_SOUNDS[soundName] || soundName) : 
+      false;
+    
+    console.log(`Showing notification for ${prayerName} with sound: ${actualSound || 'disabled'}`);
+    
     // First alert notification (with sound if enabled)
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `${prayerName} Prayer - Time Remaining`,
         body: `Time left: ${remainingTime}`,
         subtitle: `Prepare for prayer`,
-        sound: soundEnabled ? NOTIFICATION_SOUNDS[prayerName] || NOTIFICATION_SOUNDS.default : false,
+        sound: actualSound,
         badge: 1,
         // Add data field to ensure consistent handling
-        data: { type: 'alert', prayerName, remainingTime, soundEnabled },
+        data: { type: 'alert', prayerName, remainingTime, soundEnabled, soundName },
       },
       identifier: PRAYER_ALERT_NOTIFICATION_ID,
       trigger: null, // Immediate notification
     });
     
-    console.log(`Showing alert notification for ${prayerName}, sound ${soundEnabled ? 'enabled' : 'disabled'}`);
+    console.log(`Showing alert notification for ${prayerName}, sound ${soundEnabled ? soundName : 'disabled'}`);
     
     // Initial countdown notification with enhanced visibility
     await Notifications.scheduleNotificationAsync({
@@ -135,7 +162,7 @@ export async function showRemainingTimeNotification(
         autoDismiss: false,
         priority: 'max',
         // Add data field to ensure consistent handling
-        data: { type: 'countdown', prayerName, remainingTime, soundEnabled },
+        data: { type: 'countdown', prayerName, remainingTime, soundEnabled, soundName },
         ...(Platform.OS === 'android' && {
           android: {
             channelId: 'prayer-countdown',
@@ -231,7 +258,13 @@ export async function clearCountdownNotifications() {
 export async function schedulePrayerNotifications(
   prayerTimes: PrayerTimes, 
   selectedDate: Date,
-  soundPreferences: { [key: string]: boolean } = {}
+  soundPreferences: PrayerSoundPreferences = {
+    Fajr: { enabled: true, sound: 'default_beep' },
+    Dhuhr: { enabled: true, sound: 'default_beep' },
+    Asr: { enabled: true, sound: 'default_beep' },
+    Maghrib: { enabled: true, sound: 'default_beep' },
+    Isha: { enabled: true, sound: 'default_beep' }
+  }
 ) {
   if (Platform.OS === 'web') return;
 
@@ -313,17 +346,19 @@ export async function schedulePrayerNotifications(
       // Show notification for current prayer if it's a main prayer
       const isMainPrayer = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].includes(lastPrayerBeforeNow.name);
       if (isMainPrayer && remainingMs > 0) {
-        // Get the sound preference for this prayer (default to true if not specified)
-        const soundEnabled = soundPreferences[lastPrayerBeforeNow.name] !== undefined 
-          ? soundPreferences[lastPrayerBeforeNow.name] 
-          : true;
-          
-        console.log(`Showing notification for current prayer: ${lastPrayerBeforeNow.name} (sound: ${soundEnabled ? 'on' : 'off'})`);
+        // Get the sound preference for this prayer (default to enabled with default_beep if not specified)
+        const soundPreference = soundPreferences[lastPrayerBeforeNow.name] || { 
+          enabled: true, 
+          sound: 'default_beep' 
+        };
+        
+        console.log(`Showing notification for current prayer: ${lastPrayerBeforeNow.name} (sound: ${soundPreference.enabled ? soundPreference.sound : 'off'})`);
         await showRemainingTimeNotification(
           lastPrayerBeforeNow.name, 
           remainingTimeStr, 
           endTime.getTime(),
-          soundEnabled
+          soundPreference.enabled,
+          soundPreference.sound
         );
       }
       

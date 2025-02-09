@@ -15,7 +15,9 @@ interface PrayerCardProps {
   onIshaPress?: () => void;
   currentPrayer?: PrayerTimeInfo | null;
   soundEnabled?: boolean;
+  soundType?: string;
   onSoundToggle?: () => void;
+  onSoundLongPress?: () => void;
 }
 
 export const PrayerCard = React.memo(({ 
@@ -29,7 +31,9 @@ export const PrayerCard = React.memo(({
   onIshaPress,
   currentPrayer,
   soundEnabled = true,
-  onSoundToggle
+  soundType = 'default_beep',
+  onSoundToggle,
+  onSoundLongPress
 }: PrayerCardProps) => {
   const displayName = isAsr 
     ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})`
@@ -81,14 +85,30 @@ export const PrayerCard = React.memo(({
                   e.stopPropagation();
                   onSoundToggle();
                 }}
+                onLongPress={(e) => {
+                  // Stop event propagation to parent pressable
+                  e.stopPropagation();
+                  if (onSoundLongPress) {
+                    onSoundLongPress();
+                  }
+                }}
                 style={styles.soundButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons 
-                  name={soundEnabled ? "volume-high" : "volume-mute"} 
-                  size={24} 
-                  color={soundEnabled ? "#60A5FA" : "#9CA3AF"}
-                />
+                <View style={styles.soundIconContainer}>
+                  <Ionicons 
+                    name={soundEnabled ? "volume-high" : "volume-mute"} 
+                    size={24} 
+                    color={soundEnabled ? "#60A5FA" : "#9CA3AF"}
+                  />
+                  {soundEnabled && soundType !== 'default_beep' && (
+                    <Text style={styles.soundTypeIndicator}>
+                      {soundType === 'default' ? 'Default' : 
+                       soundType === 'none' ? 'Silent' :
+                       soundType.charAt(0).toUpperCase() + soundType.slice(1)}
+                    </Text>
+                  )}
+                </View>
               </Pressable>
             )}
           </View>
@@ -169,5 +189,15 @@ const styles = StyleSheet.create({
   },
   soundButton: {
     padding: 4,
+  },
+  soundIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  soundTypeIndicator: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 }); 
