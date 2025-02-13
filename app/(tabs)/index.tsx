@@ -23,6 +23,8 @@ import { IshaMethodModal } from '../components/IshaMethodModal';
 import { SoundSelectionModal } from '../components/SoundSelectionModal';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
 import * as Notifications from 'expo-notifications';
+import { useTheme } from '../utils/ThemeContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Constants for storage keys
 const PRAYER_SOUNDS_STORAGE_KEY = 'prayer_sounds_preferences';
@@ -30,34 +32,35 @@ const PRAYER_SOUNDS_STORAGE_KEY = 'prayer_sounds_preferences';
 const TimerSection = ({ currentPrayer, location }: { currentPrayer: PrayerTimeInfo | null, location: Location.LocationObject | null }) => {
   const timezoneOffset = -(new Date().getTimezoneOffset() / 60);
   const gmtString = `GMT:${timezoneOffset >= 0 ? '+' : ''}${timezoneOffset}`;
+  const { theme } = useTheme();
   
   return (
-    <View style={styles.timerSection}>
+    <View style={[styles.timerSection, { backgroundColor: theme.surface, borderTopColor: theme.divider }]}>
       <View style={styles.timerContainer}>
         {currentPrayer && (
           <>
-            <Text style={styles.currentPrayerName}>{currentPrayer.name}</Text>
-            <Text style={styles.timerText}>{currentPrayer.remainingTime}</Text>
+            <Text style={[styles.currentPrayerName, { color: theme.primary }]}>{currentPrayer.name}</Text>
+            <Text style={[styles.timerText, { color: theme.success }]}>{currentPrayer.remainingTime}</Text>
           </>
         )}
       </View>
       {location && (
-        <View style={styles.locationDetails}>
+        <View style={[styles.locationDetails, { borderTopColor: theme.divider }]}>
           <View style={styles.locationRow}>
-            <Text style={styles.locationLabel}>Lat/Long:</Text>
-            <Text style={styles.locationValue}>
+            <Text style={[styles.locationLabel, { color: theme.textSecondary }]}>Lat/Long:</Text>
+            <Text style={[styles.locationValue, { color: theme.textPrimary }]}>
               {location.coords.latitude.toFixed(4)}°, {location.coords.longitude.toFixed(4)}°
             </Text>
           </View>
           <View style={styles.locationRow}>
-            <Text style={styles.locationLabel}>Altitude:</Text>
-            <Text style={styles.locationValue}>
+            <Text style={[styles.locationLabel, { color: theme.textSecondary }]}>Altitude:</Text>
+            <Text style={[styles.locationValue, { color: theme.textPrimary }]}>
               {Math.max(0, location.coords.altitude ?? 0).toFixed(1)}meters ±{Math.max(0, location.coords.altitudeAccuracy ?? 0).toFixed(1)}
             </Text>
           </View>
           <View style={styles.locationRow}>
-            <Text style={styles.locationLabel}>Timezone:</Text>
-            <Text style={styles.locationValue}>{gmtString}</Text>
+            <Text style={[styles.locationLabel, { color: theme.textSecondary }]}>Timezone:</Text>
+            <Text style={[styles.locationValue, { color: theme.textPrimary }]}>{gmtString}</Text>
           </View>
         </View>
       )}
@@ -79,6 +82,7 @@ export default function PrayerTimesScreen() {
   const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
   const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
   const [appState, setAppState] = useState(AppState.currentState);
+  const { theme } = useTheme();
   
   // Add state for sound selection modal
   const [showSoundModal, setShowSoundModal] = useState(false);
@@ -211,11 +215,12 @@ export default function PrayerTimesScreen() {
   //Time remaining for prayer. - ok
   //Nemaz time remainig counter - ok
   //Nemaz time remainig counter in notification- ok
-  //Give notification when 20% of time is left - ok
+  //Give notification when 20% of time is left - ok**
   //Qibla direction with compass - ok
   //tasbih counter - ok
   //Advert page - option to push Advert to Advert page.
   //Custom message page - option to push message to page.
+  //Sehri and Iftar time -
 
   
   useEffect(() => {
@@ -225,7 +230,13 @@ export default function PrayerTimesScreen() {
   const updatePrayerTimes = async (date: Date, coords: Coordinates) => {
     try {
       setLoading(true);
-      const times = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
+      // Create a valid Coordinates object with correct altitude type
+      const validCoords: Coordinates = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        altitude: coords.altitude ?? 0, // Use 0 if altitude is null
+      };
+      const times = calculatePrayerTimes(date, validCoords, asrMethod, ishaMethod);
       setPrayerTimes(times);
       if (notificationsEnabled) {
         await schedulePrayerNotifications(times, date, prayerSounds);
@@ -293,12 +304,17 @@ export default function PrayerTimesScreen() {
   }, [selectedDate, location, asrMethod, ishaMethod]);
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    } else {
+      return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    }
   };
 
   const onChange = (event: any, date?: Date) => {
@@ -469,33 +485,55 @@ export default function PrayerTimesScreen() {
   }
 
   const renderDatePicker = () => {
-    if (Platform.OS === 'web') {
-      return (
-        <input
-          type="date"
-          value={selectedDate.toISOString().split('T')[0]}
-          onChange={(e) => setSelectedDate(new Date(e.target.value))}
-          style={{
-            backgroundColor: '#374151',
-            color: '#F3F4F6',
-            padding: 12,
-            borderRadius: 8,
-            border: 'none',
-            marginBottom: 20,
-            width: '100%',
-            fontSize: 16,
-          }}
-        />
-      );
-    }
-
-    if (showDatePicker || Platform.OS === 'ios') {
-      return (
+    if (showDatePicker) {
+      return Platform.OS === 'ios' ? (
+        <View style={[styles.datePickerContainer, { backgroundColor: theme.surface }]}>
+          <View style={styles.datePickerHeader}>
+            <Pressable onPress={() => setShowDatePicker(false)} style={styles.datePickerButton}>
+              <Text style={[styles.datePickerButtonText, { color: theme.primary }]}>Done</Text>
+            </Pressable>
+          </View>
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="spinner"
+            onChange={(event, selectedDate) => {
+              if (selectedDate) {
+                setSelectedDate(selectedDate);
+                if (location) {
+                  // Create valid Coordinates object
+                  const validCoords: Coordinates = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    altitude: location.coords.altitude ?? 0, // Use 0 if altitude is null
+                  };
+                  updatePrayerTimes(selectedDate, validCoords);
+                }
+              }
+            }}
+            style={styles.datePicker}
+          />
+        </View>
+      ) : (
         <DateTimePicker
           value={selectedDate}
           mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onChange}
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              setSelectedDate(selectedDate);
+              if (location) {
+                // Create valid Coordinates object
+                const validCoords: Coordinates = {
+                  latitude: location.coords.latitude,
+                  longitude: location.coords.longitude,
+                  altitude: location.coords.altitude ?? 0, // Use 0 if altitude is null
+                };
+                updatePrayerTimes(selectedDate, validCoords);
+              }
+            }
+          }}
         />
       );
     }
@@ -504,127 +542,128 @@ export default function PrayerTimesScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <TimerSection currentPrayer={currentPrayer} location={location} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.contentContainer}>
+        <TimerSection currentPrayer={currentPrayer} location={location} />
 
-      <NotificationToggle
-        notificationsEnabled={notificationsEnabled}
-        setNotificationsEnabled={setNotificationsEnabled}
-        prayerTimes={prayerTimes}
-        selectedDate={selectedDate}
-        prayerSounds={prayerSounds}
-      />
-      
-      <Text style={styles.helpText}>
-        Tap the sound icon on each prayer card to enable or disable notification sounds.
-        Long press the sound icon to select a different sound for notifications.
-      </Text>
+        <NotificationToggle
+          notificationsEnabled={notificationsEnabled}
+          setNotificationsEnabled={setNotificationsEnabled}
+          prayerTimes={prayerTimes}
+          selectedDate={selectedDate}
+          prayerSounds={prayerSounds}
+        />
+        
+        <Text style={[styles.helpText, { color: theme.textSecondary }]}>
+          Tap the sound icon on each prayer card to enable or disable notification sounds.
+          Long press the sound icon to select a different sound for notifications.
+        </Text>
 
-      <Pressable
-        style={styles.dateButton}
-        onPress={() => setShowDatePicker(true)}>
-        <Text style={styles.dateButtonText}>{formatDate(selectedDate)}</Text>
-      </Pressable>
+        <Pressable
+          style={[styles.dateButton, { backgroundColor: theme.surface }]}
+          onPress={() => setShowDatePicker(true)}>
+          <Text style={[styles.dateButtonText, { color: theme.textPrimary }]}>{formatDate(selectedDate)}</Text>
+        </Pressable>
 
-      {renderDatePicker()}
+        {renderDatePicker()}
 
-      {prayerTimes && (
-        <>
-          <PrayerCard 
-            name="Fajr" 
-            time={prayerTimes.Fajr} 
-            currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Fajr.enabled}
-            soundType={prayerSounds.Fajr.sound}
-            onSoundToggle={() => togglePrayerSound('Fajr')}
-            onSoundLongPress={() => openSoundSelection('Fajr')}
-          />
-          <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} currentPrayer={currentPrayer} />
-          <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} currentPrayer={currentPrayer} />
-          <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} currentPrayer={currentPrayer} />
-          <PrayerCard 
-            name="Dhuhr" 
-            time={prayerTimes.Dhuhr} 
-            currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Dhuhr.enabled}
-            soundType={prayerSounds.Dhuhr.sound}
-            onSoundToggle={() => togglePrayerSound('Dhuhr')}
-            onSoundLongPress={() => openSoundSelection('Dhuhr')}
-          />
-          <PrayerCard 
-            name="Asr" 
-            time={prayerTimes.Asr} 
-            isAsr={true}
-            asrMethod={asrMethod}
-            onAsrPress={() => setShowAsrModal(true)}
-            currentPrayer={currentPrayer}
-            soundEnabled={prayerSounds.Asr.enabled}
-            soundType={prayerSounds.Asr.sound}
-            onSoundToggle={() => togglePrayerSound('Asr')}
-            onSoundLongPress={() => openSoundSelection('Asr')}
-          />
-          <PrayerCard 
-            name="Maghrib" 
-            time={prayerTimes.Maghrib} 
-            currentPrayer={currentPrayer} 
-            soundEnabled={prayerSounds.Maghrib.enabled}
-            soundType={prayerSounds.Maghrib.sound}
-            onSoundToggle={() => togglePrayerSound('Maghrib')}
-            onSoundLongPress={() => openSoundSelection('Maghrib')}
-          />
-          <PrayerCard 
-            name="Isha" 
-            time={prayerTimes.Isha} 
-            isIsha={true}
-            ishaMethod={ishaMethod}
-            onIshaPress={() => setShowIshaModal(true)}
-            currentPrayer={currentPrayer}
-            soundEnabled={prayerSounds.Isha.enabled}
-            soundType={prayerSounds.Isha.sound}
-            onSoundToggle={() => togglePrayerSound('Isha')}
-            onSoundLongPress={() => openSoundSelection('Isha')}
-          />
-        </>
-      )}
+        {prayerTimes && (
+          <>
+            <PrayerCard 
+              name="Fajr" 
+              time={prayerTimes.Fajr} 
+              currentPrayer={currentPrayer} 
+              soundEnabled={prayerSounds.Fajr.enabled}
+              soundType={prayerSounds.Fajr.sound}
+              onSoundToggle={() => togglePrayerSound('Fajr')}
+              onSoundLongPress={() => openSoundSelection('Fajr')}
+            />
+            <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} currentPrayer={currentPrayer} />
+            <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} currentPrayer={currentPrayer} />
+            <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} currentPrayer={currentPrayer} />
+            <PrayerCard 
+              name="Dhuhr" 
+              time={prayerTimes.Dhuhr} 
+              currentPrayer={currentPrayer} 
+              soundEnabled={prayerSounds.Dhuhr.enabled}
+              soundType={prayerSounds.Dhuhr.sound}
+              onSoundToggle={() => togglePrayerSound('Dhuhr')}
+              onSoundLongPress={() => openSoundSelection('Dhuhr')}
+            />
+            <PrayerCard 
+              name="Asr" 
+              time={prayerTimes.Asr} 
+              isAsr={true}
+              asrMethod={asrMethod}
+              onAsrPress={() => setShowAsrModal(true)}
+              currentPrayer={currentPrayer}
+              soundEnabled={prayerSounds.Asr.enabled}
+              soundType={prayerSounds.Asr.sound}
+              onSoundToggle={() => togglePrayerSound('Asr')}
+              onSoundLongPress={() => openSoundSelection('Asr')}
+            />
+            <PrayerCard 
+              name="Maghrib" 
+              time={prayerTimes.Maghrib} 
+              currentPrayer={currentPrayer} 
+              soundEnabled={prayerSounds.Maghrib.enabled}
+              soundType={prayerSounds.Maghrib.sound}
+              onSoundToggle={() => togglePrayerSound('Maghrib')}
+              onSoundLongPress={() => openSoundSelection('Maghrib')}
+            />
+            <PrayerCard 
+              name="Isha" 
+              time={prayerTimes.Isha} 
+              isIsha={true}
+              ishaMethod={ishaMethod}
+              onIshaPress={() => setShowIshaModal(true)}
+              currentPrayer={currentPrayer}
+              soundEnabled={prayerSounds.Isha.enabled}
+              soundType={prayerSounds.Isha.sound}
+              onSoundToggle={() => togglePrayerSound('Isha')}
+              onSoundLongPress={() => openSoundSelection('Isha')}
+            />
+          </>
+        )}
 
-      <AsrMethodModal
-        visible={showAsrModal}
-        onClose={() => setShowAsrModal(false)}
-        selectedMethod={asrMethod}
-        onMethodChange={(method) => {
-          setAsrMethod(method);
-          setShowAsrModal(false);
-        }}
-      />
+        <AsrMethodModal
+          visible={showAsrModal}
+          onClose={() => setShowAsrModal(false)}
+          selectedMethod={asrMethod}
+          onMethodChange={(method) => {
+            setAsrMethod(method);
+            setShowAsrModal(false);
+          }}
+        />
 
-      <IshaMethodModal
-        visible={showIshaModal}
-        onClose={() => setShowIshaModal(false)}
-        selectedMethod={ishaMethod}
-        onMethodChange={(method) => {
-          setIshaMethod(method);
-          setShowIshaModal(false);
-        }}
-      />
+        <IshaMethodModal
+          visible={showIshaModal}
+          onClose={() => setShowIshaModal(false)}
+          selectedMethod={ishaMethod}
+          onMethodChange={(method) => {
+            setIshaMethod(method);
+            setShowIshaModal(false);
+          }}
+        />
 
-      <SoundSelectionModal
-        visible={showSoundModal}
-        onClose={() => setShowSoundModal(false)}
-        prayerName={selectedPrayerForSound}
-        currentSound={selectedPrayerForSound ? prayerSounds[selectedPrayerForSound].sound : 'default_beep'}
-        onSoundChange={(sound) => {
-          changePrayerSound(selectedPrayerForSound, sound);
-          setShowSoundModal(false);
-        }}
-      />
-    </ScrollView>
+        <SoundSelectionModal
+          visible={showSoundModal}
+          onClose={() => setShowSoundModal(false)}
+          prayerName={selectedPrayerForSound}
+          currentSound={selectedPrayerForSound ? prayerSounds[selectedPrayerForSound].sound : 'default_beep'}
+          onSoundChange={(sound) => {
+            changePrayerSound(selectedPrayerForSound, sound);
+            setShowSoundModal(false);
+          }}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
   },
   contentContainer: {
     padding: 16,
@@ -633,33 +672,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#111827',
   },
   locationText: {
-    color: '#9CA3AF',
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
   },
   dateButton: {
-    backgroundColor: '#374151',
     padding: 12,
     borderRadius: 8,
     marginBottom: 20,
   },
   dateButtonText: {
-    color: '#F3F4F6',
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '600',
   },
   errorText: {
-    color: '#EF4444',
     fontSize: 16,
     textAlign: 'center',
   },
   timerSection: {
-    backgroundColor: '#1F2937',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -677,20 +710,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   currentPrayerName: {
-    color: '#60A5FA',
     fontSize: 24,
     fontWeight: '600',
     marginBottom: 8,
   },
   timerText: {
-    color: '#10B981',
     fontSize: 48,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   locationDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#374151',
     paddingTop: 16,
   },
   locationRow: {
@@ -700,18 +730,35 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   locationLabel: {
-    color: '#9CA3AF',
     fontSize: 14,
     fontWeight: '500',
   },
   locationValue: {
-    color: '#F3F4F6',
     fontSize: 14,
     fontWeight: '600',
   },
   helpText: {
-    color: '#9CA3AF',
     fontSize: 14,
     marginBottom: 20,
+  },
+  datePickerContainer: {
+    marginBottom: 20,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 8,
+  },
+  datePickerButton: {
+    padding: 8,
+  },
+  datePickerButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  datePicker: {
+    height: 200,
   },
 });

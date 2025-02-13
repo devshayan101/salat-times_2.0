@@ -1,33 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Vibration, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Vibration, ScrollView, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../utils/ThemeContext';
 
 // Storage key for saving tasbih count
 const TASBIH_COUNT_KEY = 'tasbih_count';
+const TASBIH_VIBRATION_KEY = 'tasbih_vibration';
+
+// Get screen dimensions
+const { width, height } = Dimensions.get('window');
 
 export default function TasbihScreen() {
   const [count, setCount] = useState(0);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
+  const { theme, isDark } = useTheme();
 
-  // Load saved count on component mount
+  // Load saved count and vibration setting
   useEffect(() => {
-    const loadSavedCount = async () => {
+    const loadSavedSettings = async () => {
       try {
+        // Load saved count
         const savedCount = await AsyncStorage.getItem(TASBIH_COUNT_KEY);
         if (savedCount !== null) {
           setCount(parseInt(savedCount, 10));
         }
+        
+        // Load vibration setting
+        const vibrationSetting = await AsyncStorage.getItem(TASBIH_VIBRATION_KEY);
+        if (vibrationSetting !== null) {
+          setVibrationEnabled(vibrationSetting === 'true');
+        }
       } catch (error) {
-        console.error('Error loading tasbih count:', error);
+        console.error('Error loading tasbih settings:', error);
       }
     };
-
-    loadSavedCount();
+    
+    loadSavedSettings();
   }, []);
-
-  // Save count whenever it changes
+  
+  // Save count when it changes
   useEffect(() => {
     const saveCount = async () => {
       try {
@@ -36,23 +49,36 @@ export default function TasbihScreen() {
         console.error('Error saving tasbih count:', error);
       }
     };
-
+    
     saveCount();
   }, [count]);
+  
+  // Save vibration setting when it changes
+  useEffect(() => {
+    const saveVibrationSetting = async () => {
+      try {
+        await AsyncStorage.setItem(TASBIH_VIBRATION_KEY, vibrationEnabled.toString());
+      } catch (error) {
+        console.error('Error saving vibration setting:', error);
+      }
+    };
+    
+    saveVibrationSetting();
+  }, [vibrationEnabled]);
 
-  // Increment count
+  // Increment count and vibrate if enabled
   const incrementCount = () => {
     setCount(prevCount => prevCount + 1);
     if (vibrationEnabled) {
-      Vibration.vibrate(20); // Short vibration
+      Vibration.vibrate(20);
     }
   };
 
-  // Reset count
+  // Reset count and vibrate if enabled
   const resetCount = () => {
     setCount(0);
     if (vibrationEnabled) {
-      Vibration.vibrate([0, 30, 30, 30]); // Pattern vibration for reset
+      Vibration.vibrate([0, 30, 50, 30]);
     }
   };
 
@@ -62,190 +88,159 @@ export default function TasbihScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.mainContainer}>
+        {/* Counter display */}
+        <View style={styles.counterDisplayContainer}>
+          <Text style={[styles.counterText, { color: theme.textPrimary }]}>{count}</Text>
+        </View>
+        
+        {/* Centered tap to count button */}
+        <View style={styles.centerButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.counterButton, { backgroundColor: theme.tasbihButtonBackground }]} 
+            onPress={incrementCount}
+            activeOpacity={0.6}
+          >
+            <Text style={[styles.counterButtonText, { color: theme.tasbihButtonText }]}>Tap to Count</Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.counterContainer}>
-        <Text style={styles.counterText}>{count}</Text>
-        <TouchableOpacity 
-          style={styles.counterButton} 
-          onPress={incrementCount}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.counterButtonText}>Tap to Count</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.presetContainer}>
-        <Text style={styles.presetTitle}>Common Tasbih Targets</Text>
-        <View style={styles.presetRow}>
-          {[33, 100, 360,1000, 10000].map(target => (
-            <View 
-              key={target} 
-              style={[
-                styles.presetBadge, 
-                count >= target && styles.presetBadgeReached
-              ]}
-            >
-              <Text style={styles.presetBadgeText}>{target}</Text>
-              {count >= target && (
-                <Ionicons name="checkmark" size={14} color="#FFF" style={styles.checkIcon} />
-              )}
-            </View>
-          ))}
+        {/* Preset targets */}
+        <View style={[styles.presetContainer, { borderTopColor: theme.divider }]}>
+          <Text style={[styles.presetTitle, { color: theme.textPrimary }]}>Common Tasbih Targets</Text>
+          <View style={styles.presetRow}>
+            {[33, 100, 313, 360, 1000].map(target => (
+              <View 
+                key={target} 
+                style={[
+                  styles.presetBadge, 
+                  { backgroundColor: count >= target ? theme.success : theme.surface, borderColor: theme.divider },
+                ]}
+              >
+                <Text 
+                  style={[
+                    styles.presetBadgeText, 
+                    { color: count >= target ? 'white' : theme.textPrimary }
+                  ]}
+                >
+                  {target}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        
+        {/* Controls */}
+        <View style={styles.controlsContainer}>
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
+            onPress={resetCount}
+          >
+            <Ionicons name="refresh" size={22} color={theme.textPrimary} />
+            <Text style={[styles.controlButtonText, { color: theme.textPrimary }]}>Reset</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
+            onPress={toggleVibration}
+          >
+            <Ionicons 
+              name={vibrationEnabled ? "cellular" : "cellular-outline"} 
+              size={22} 
+              color={theme.textPrimary} 
+            />
+            <Text style={[styles.controlButtonText, { color: theme.textPrimary }]}>
+              {vibrationEnabled ? 'Vibration On' : 'Vibration Off'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      <TouchableOpacity 
-        style={styles.resetButton} 
-        onPress={resetCount}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="refresh" size={20} color="#F3F4F6" />
-        <Text style={styles.resetButtonText}>Reset Counter</Text>
-      </TouchableOpacity>
-
-      <View style={styles.header}>
-        <Text style={styles.title}>Vibration Toggle</Text>
-        <TouchableOpacity onPress={toggleVibration} style={styles.vibrationToggle}>
-          <Ionicons 
-            name={vibrationEnabled ? "cellular" : "cellular-outline"} 
-            size={30} 
-            color={vibrationEnabled ? "#60A5FA" : "#9CA3AF"} 
-          />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsTitle}>How to use</Text>
-        <Text style={styles.instructionsText}>• Tap the counter button to increase the count</Text>
-        <Text style={styles.instructionsText}>• Press reset to start over</Text>
-        <Text style={styles.instructionsText}>• Toggle vibration using the button in the top right</Text>
-        <Text style={styles.instructionsText}>• Your count will be saved automatically</Text>
-      </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
-    padding: 12,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  mainContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  counterDisplayContainer: {
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 19,
-    fontWeight: 'bold',
-    color: '#F3F4F6',
-  },
-  vibrationToggle: {
-    padding: 8,
-  },
-  counterContainer: {
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    justifyContent: 'center',
+    marginVertical: 20,
   },
   counterText: {
-    fontSize: 72,
+    fontSize: 64,
     fontWeight: 'bold',
-    color: '#60A5FA',
-    marginBottom: 20,
-    fontVariant: ['tabular-nums'],
   },
-  counterButton: {
-    backgroundColor: '#374151',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    width: '100%',
+  centerButtonContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  counterButton: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
+  },
   counterButtonText: {
-    color: '#F3F4F6',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   presetContainer: {
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
+    borderTopWidth: 1,
+    paddingTop: 20,
+    marginTop: 20,
   },
   presetTitle: {
-    color: '#9CA3AF',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 12,
   },
   presetRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
   },
   presetBadge: {
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    paddingVertical: 8,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 60,
-    justifyContent: 'center',
-  },
-  presetBadgeReached: {
-    backgroundColor: '#10B981',
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 10,
   },
   presetBadgeText: {
-    color: '#F3F4F6',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
-  checkIcon: {
-    marginLeft: 4,
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 24,
+    marginBottom: 16,
   },
-  resetButton: {
-    backgroundColor: '#4B5563',
+  controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginBottom: 24,
+    borderWidth: 1,
   },
-  resetButtonText: {
-    color: '#F3F4F6',
-    fontSize: 16,
-    fontWeight: '600',
+  controlButtonText: {
     marginLeft: 8,
-  },
-  instructionsContainer: {
-    backgroundColor: '#1F2937',
-    borderRadius: 16,
-    padding: 16,
-    paddingBottom: 40,
-  },
-  instructionsTitle: {
-    color: '#F3F4F6',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  instructionsText: {
-    color: '#9CA3AF',
     fontSize: 14,
-    marginBottom: 8,
+    fontWeight: '500',
   },
 }); 

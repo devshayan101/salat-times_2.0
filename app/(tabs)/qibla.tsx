@@ -8,6 +8,8 @@ import Animated, {
   useSharedValue,
   runOnJS,
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../utils/ThemeContext';
 
 const KAABA_COORDS = {
   latitude: 21.4225,
@@ -20,6 +22,7 @@ export default function QiblaScreen() {
   const headingValue = useSharedValue(0);
   const [heading, setHeading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     let headingSubscription: Location.LocationSubscription | null = null;
@@ -94,16 +97,16 @@ export default function QiblaScreen() {
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Qibla Direction</Text>
-      <View style={styles.compassContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.textPrimary }]}>Qibla Direction</Text>
+      <View style={[styles.compassContainer, { backgroundColor: theme.surface }]}>
         <Animated.View style={[styles.compass, animatedStyle]}>
           <Svg height="200" width="200" viewBox="0 0 100 100">
             {/* Kaaba Icon */}
@@ -142,37 +145,36 @@ export default function QiblaScreen() {
             {/* Direction Indicator */}
             <Path
               d="M50 10 L45 25 L50 20 L55 25 Z"
-              fill="#60A5FA"
-              stroke="#1F2937"
+              fill={theme.primary}
+              stroke={theme.divider}
               strokeWidth="1"
             />
           </Svg>
         </Animated.View>
       </View>
-      <Text style={styles.coordinates}>
+      <Text style={[styles.coordinates, { color: theme.textSecondary }]}>
         {location
           ? `📍 ${location.coords.latitude.toFixed(4)}, ${location.coords.longitude.toFixed(4)}`
           : 'Determining location...'}
       </Text>
-      <Text style={styles.degrees}>
+      <Text style={[styles.degrees, { color: theme.primary }]}>
         {qiblaDirectionValue ? `${Math.round(qiblaDirectionValue.value)}° from North` : ''}
       </Text>
       {heading !== null && (
-        <Text style={styles.heading}>
+        <Text style={[styles.heading, { color: theme.textSecondary }]}>
           Compass heading: {Math.round(heading)}°
         </Text>
       )}
-      <Text style={styles.instructions}>
+      <Text style={[styles.instructions, { color: theme.textSecondary }]}>
         The arrow will automatically point to the Qibla direction as you rotate your device
       </Text>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -180,14 +182,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#F3F4F6',
     marginBottom: 40,
   },
   compassContainer: {
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: '#1F2937',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 5,
@@ -208,29 +208,24 @@ const styles = StyleSheet.create({
   coordinates: {
     marginTop: 40,
     fontSize: 16,
-    color: '#9CA3AF',
     textAlign: 'center',
   },
   degrees: {
     marginTop: 20,
     fontSize: 20,
     fontWeight: '600',
-    color: '#60A5FA',
   },
   heading: {
     marginTop: 10,
     fontSize: 16,
-    color: '#9CA3AF',
   },
   instructions: {
     marginTop: 20,
-    color: '#D1D5DB',
     textAlign: 'center',
     fontSize: 14,
     paddingHorizontal: 20,
   },
   errorText: {
-    color: '#EF4444',
     fontSize: 16,
     textAlign: 'center',
   },

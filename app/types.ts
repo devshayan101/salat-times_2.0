@@ -29,4 +29,14 @@ export interface PrayerSoundPreferences {
   Asr: PrayerSoundPreference;
   Maghrib: PrayerSoundPreference;
   Isha: PrayerSoundPreference;
+}
+
+// Interface for admin messages
+export interface AdminMessage {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  isRead: boolean;
+  priority: 'normal' | 'high';
 } 
