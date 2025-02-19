@@ -78,28 +78,29 @@ function calculatePrayerTime(
   // Calculate A parameter based on prayer type and elevation
   console.log('elevation',coordinates.altitude+10);
   const sqrtE = Math.sqrt(coordinates.altitude + 10);
-  
-  // let A = 90; // Default for Asr  
-  // if (isMaghribOrSunrise) {
-  //   A = 91 + sqrtE * 0.0347;
-  // } else if (isFajrOrIsha) {
-  //   A = 110 + sqrtE * 0.0347;
-  // }
+  const latRad = coordinates.latitude * (Math.PI / 180);
+  const E = 2; // User input (can be 1 or 2)
 
+  // Calculate the tangent based on the condition
+  let tanValue;
+  if (latRad > C) {
+      tanValue = Math.tan((latRad - C) ); 
+  } else {
+      tanValue = Math.tan((C - latRad) );
+  }
+  
   const A = isMaghribOrSunrise || isFajrOrIsha
     ? (isMaghribOrSunrise ? 91 : 110) + sqrtE * 0.0347
-    : 90; // Default for Asr
+    : Math.atan(E + tanValue) * (180 / Math.PI); // Convert result to degrees; // Default for Asr
 
   // from degrees to radians before calculating its sine. This is necessary because trigonometric functions in JavaScript expect angles in radians.
   // Convert latitude to radians
-  const latRad = coordinates.latitude * (Math.PI / 180);
-  const CRad = C * (Math.PI / 180);
   const ARad = A * (Math.PI / 180);
 
   // Main calculation
   const cosA = Math.cos(ARad);
   const cosLat = Math.cos(latRad);
-  const cosC = Math.cos(CRad);
+  const cosC = Math.cos(C);
   const tanLat = Math.tan(latRad);
   const tanC = Math.tan(C);
 
@@ -107,6 +108,7 @@ function calculatePrayerTime(
   console.log({
     salat,
     A,
+    ARad,
     latitude: coordinates.latitude,
     C: C_degrees,
     cosA: cosA.toFixed(6),
