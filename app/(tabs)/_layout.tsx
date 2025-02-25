@@ -19,7 +19,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Prayer Times',
+          title: 'Salat Times',
           tabBarIcon: ({ size, color }) => (
             <Ionicons name="time" size={size} color={color} />
           ),
