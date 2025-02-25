@@ -93,7 +93,7 @@ export default function PrayerTimesScreen() {
       };
       updatePrayerTimes(selectedDate, coords);
     }
-  }, [selectedDate]);
+  }, [selectedDate, location, asrMethod]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -209,14 +209,6 @@ export default function PrayerTimesScreen() {
         onMethodChange={(method) => {
           setAsrMethod(method);
           setShowAsrModal(false);
-          if (location) {
-            const coords: Coordinates = {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              altitude: location.coords.altitude ?? 0
-            };
-            updatePrayerTimes(selectedDate, coords);
-          }
         }}
       />
     </ScrollView>

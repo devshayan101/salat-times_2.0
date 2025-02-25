@@ -82,11 +82,11 @@ export function calculatePrayerTimes(date: Date, coordinates: Coordinates, asrMe
   const [dhuhrHours, dhuhrMinutes] = dhuhrTime.split(':').map(Number);
   const dhuhrDecimal = dhuhrHours + (dhuhrMinutes / 60);
 
-  const fajrOffset = calculatePrayerTime(date, coordinates, false, true, 'fajr', asrMethod);
-  const sunriseOffset = calculatePrayerTime(date, coordinates, true, false, 'sunrise', asrMethod);
+  const fajrOffset = calculatePrayerTime(date, coordinates, false, true, 'fajr', 2);
+  const sunriseOffset = calculatePrayerTime(date, coordinates, true, false, 'sunrise', 2);
   const asrOffset = calculatePrayerTime(date, coordinates, false, false, 'asr', asrMethod);
-  const maghribOffset = calculatePrayerTime(date, coordinates, true, false, 'maghrib', asrMethod);
-  const ishaOffset = calculatePrayerTime(date, coordinates, false, true, 'isha', asrMethod);
+  const maghribOffset = calculatePrayerTime(date, coordinates, true, false, 'maghrib', 2);
+  const ishaOffset = calculatePrayerTime(date, coordinates, false, true, 'isha', 2);
 
   const formatTime = (timeInDecimalHours: number) => {
     const hours = Math.floor(timeInDecimalHours);
