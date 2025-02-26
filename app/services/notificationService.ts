@@ -11,10 +11,13 @@ Notifications.setNotificationHandler({
   }),
 });
 
+//Add notification for ios
+
+
 export async function setNotificationChannel() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('prayer-times', {
-      name: 'Prayer Times',
+      name: 'Salat Times',
       importance: Notifications.AndroidImportance.HIGH,
       sound: 'default',
       vibrationPattern: [0, 250, 250, 250],
@@ -31,6 +34,7 @@ export async function schedulePrayerNotifications(prayerTimes: PrayerTimes, sele
     const prayers = [
       { name: 'Fajr', time: prayerTimes.Fajr },
       { name: 'Sunrise', time: prayerTimes.Sunrise },
+      { name: 'Ishraq', time: prayerTimes.Ishraq },
       { name: 'Dhuhr', time: prayerTimes.Dhuhr },
       { name: 'Asr', time: prayerTimes.Asr },
       { name: 'Maghrib', time: prayerTimes.Maghrib },
@@ -56,14 +60,14 @@ export async function schedulePrayerNotifications(prayerTimes: PrayerTimes, sele
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: 'Prayer Time',
-          body: `It's time for ${prayer.name} prayer`,
+          title: 'Salat Time',
+          body: `It's time for ${prayer.name}`,
         },
         trigger: {
           hour: hour24,
           minute: minutes,
           repeats: true,
-          type: Platform.OS === 'android' ? 'daily' : 'calendar'
+          type: 'daily',
         },
       });
     }

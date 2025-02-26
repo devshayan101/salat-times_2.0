@@ -100,12 +100,17 @@ export function calculatePrayerTimes(date: Date, coordinates: Coordinates, asrMe
   };
 
   const fajrTime = dhuhrDecimal - fajrOffset;
+  const sunriseTime = dhuhrDecimal - sunriseOffset;
   const maghribTime = dhuhrDecimal + maghribOffset;
   const zawalTime = (maghribTime + fajrTime) / 2;
 
+  // Calculate Ishraq time (20 minutes after sunrise)
+  const ishraqTime = sunriseTime + (20 / 60); // Add 20 minutes (as decimal hours)
+
   return {
     Fajr: formatTime(fajrTime),
-    Sunrise: formatTime(dhuhrDecimal - sunriseOffset),
+    Sunrise: formatTime(sunriseTime),
+    Ishraq: formatTime(ishraqTime),
     Dhuhr: formatTime(dhuhrDecimal),
     Asr: formatTime(dhuhrDecimal + asrOffset),
     Maghrib: formatTime(maghribTime),

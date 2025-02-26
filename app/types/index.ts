@@ -1,6 +1,7 @@
 export interface PrayerTimes {
   Fajr: string;
   Sunrise: string;
+  Ishraq: string;
   Dhuhr: string;
   Asr: string;
   Maghrib: string;

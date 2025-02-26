@@ -22,6 +22,14 @@ export default function PrayerTimesScreen() {
   const [showAsrModal, setShowAsrModal] = useState(false);
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
 
+  //make 'hanafi' color blue - denoting hyperlink
+  //Time remaining for prayer.
+  //tasbih counter
+  //Qibla direction with compass
+  //Advert page - option to push Advert to Advert page.
+  //Custom message page - option to push message to page.
+
+  
   useEffect(() => {
     setNotificationChannel();
   }, []);
@@ -187,7 +195,8 @@ export default function PrayerTimesScreen() {
       {prayerTimes && (
         <>
           <PrayerCard name="Fajr" time={prayerTimes.Fajr} />
-          <PrayerCard name="Fajr End" time={prayerTimes.Sunrise} />
+          <PrayerCard name="Sunrise" time={prayerTimes.Sunrise} />
+          <PrayerCard name="Ishraq" time={prayerTimes.Ishraq} />
           <PrayerCard name="Zawal Time" time={prayerTimes.Zawal} />
           <PrayerCard name="Dhuhr" time={prayerTimes.Dhuhr} />
           <PrayerCard 
