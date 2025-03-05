@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Switch, Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { PrayerTimes, PrayerSoundPreferences } from '../types';
-import { schedulePrayerNotifications, clearCountdownNotifications } from '../services/notificationService';
+import { schedulePrayerNotifications, clearAllPrayerNotifications } from '../services/notificationService';
 
 interface NotificationToggleProps {
   notificationsEnabled: boolean;
@@ -45,7 +45,7 @@ export const NotificationToggle = React.memo(({
       } else {
         // User is disabling notifications
         await Notifications.cancelAllScheduledNotificationsAsync();
-        await clearCountdownNotifications();
+        await clearAllPrayerNotifications();
         setNotificationsEnabled(false);
       }
     } catch (error) {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet, Pressable } from 'react-native';
 import { RadioButton } from 'react-native-paper';
+import { useTheme } from '../utils/ThemeContext';
 
 interface IshaMethodModalProps {
   visible: boolean;
@@ -15,6 +16,8 @@ export const IshaMethodModal = React.memo(({
   selectedMethod, 
   onMethodChange 
 }: IshaMethodModalProps) => {
+  const { theme } = useTheme();
+  
   return (
     <Modal
       animationType="fade"
@@ -23,23 +26,29 @@ export const IshaMethodModal = React.memo(({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={styles.modalContent}>
-          <Text style={styles.title}>Select Isha Calculation Method</Text>
+        <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.title, { color: theme.textPrimary }]}>Select Isha Calculation Method</Text>
           
           <RadioButton.Group onValueChange={value => onMethodChange(Number(value))} value={String(selectedMethod)}>
-            <View style={styles.radioItem}>
-              <RadioButton.Android value="1" color="#60A5FA" />
-              <Text style={styles.radioLabel}>Hanafi Method</Text>
-            </View>
+            <Pressable 
+              style={styles.radioItem}
+              onPress={() => onMethodChange(1)}
+            >
+              <RadioButton.Android value="1" color={theme.primary} />
+              <Text style={[styles.radioLabel, { color: theme.textPrimary }]}>Hanafi Method</Text>
+            </Pressable>
             
-            <View style={styles.radioItem}>
-              <RadioButton.Android value="2" color="#60A5FA" />
-              <Text style={styles.radioLabel}>Shafi Method</Text>
-            </View>
+            <Pressable 
+              style={styles.radioItem}
+              onPress={() => onMethodChange(2)}
+            >
+              <RadioButton.Android value="2" color={theme.primary} />
+              <Text style={[styles.radioLabel, { color: theme.textPrimary }]}>Shafi Method</Text>
+            </Pressable>
           </RadioButton.Group>
           
-          <Pressable style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>Close</Text>
+          <Pressable style={[styles.closeButton, { backgroundColor: theme.headerBackground }]} onPress={onClose}>
+            <Text style={[styles.closeButtonText, { color: theme.textPrimary }]}>Close</Text>
           </Pressable>
         </View>
       </Pressable>
@@ -55,16 +64,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1F2937',
     borderRadius: 12,
     padding: 20,
     width: '80%',
     maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   title: {
-    color: '#F3F4F6',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -72,20 +87,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
   },
   radioLabel: {
-    color: '#F3F4F6',
     fontSize: 16,
     marginLeft: 8,
   },
   closeButton: {
-    backgroundColor: '#374151',
     padding: 12,
     borderRadius: 8,
     marginTop: 20,
   },
   closeButtonText: {
-    color: '#F3F4F6',
     fontSize: 16,
     textAlign: 'center',
     fontWeight: '600',

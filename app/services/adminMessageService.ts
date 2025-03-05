@@ -1,10 +1,16 @@
 import { AdminMessage } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   fetchMessagesFromMongoDB, 
   updateMessageReadStatus, 
   markAllMessagesReadInMongoDB,
   getUnreadMessageCountFromMongoDB
 } from './mongoDbService';
+
+// Storage key for caching messages
+const CACHED_MESSAGES_KEY = 'cached_admin_messages';
+const CACHE_TIMESTAMP_KEY = 'cached_admin_messages_timestamp';
+const CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 // Hard-coded sample messages that don't rely on AsyncStorage - these will be used as fallback
 const SAMPLE_MESSAGES: AdminMessage[] = [
@@ -38,18 +44,123 @@ const SAMPLE_MESSAGES: AdminMessage[] = [
 let inMemoryMessages = [...SAMPLE_MESSAGES];
 let isInitialized = false;
 
-// Initialize admin messages - now supports MongoDB
-export const initializeAdminMessages = async (): Promise<void> => {
+// Save messages to AsyncStorage for offline access
+const cacheMessages = async (messages: AdminMessage[]): Promise<void> => {
   try {
-    // Try to fetch messages from MongoDB
-    const mongoMessages = await fetchMessagesFromMongoDB();
-    inMemoryMessages = mongoMessages;
-    isInitialized = true;
+    await AsyncStorage.setItem(CACHED_MESSAGES_KEY, JSON.stringify(messages));
+    await AsyncStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
+    console.log('Messages cached successfully');
   } catch (error) {
-    console.error('Error fetching messages from MongoDB, using sample data:', error);
-    // If MongoDB fetch fails, use sample data
-    inMemoryMessages = [...SAMPLE_MESSAGES];
+    console.warn('Failed to cache messages:', error);
+  }
+};
+
+// Load cached messages from AsyncStorage
+const loadCachedMessages = async (): Promise<AdminMessage[] | null> => {
+  try {
+    const cachedMessagesJson = await AsyncStorage.getItem(CACHED_MESSAGES_KEY);
+    const cacheTimestamp = await AsyncStorage.getItem(CACHE_TIMESTAMP_KEY);
+    
+    if (!cachedMessagesJson || !cacheTimestamp) {
+      return null;
+    }
+    
+    // Check if cache is still valid
+    const timestamp = parseInt(cacheTimestamp, 10);
+    const now = Date.now();
+    if (now - timestamp > CACHE_MAX_AGE) {
+      console.log('Cached messages are too old, fetching new ones');
+      return null;
+    }
+    
+    const cachedMessages = JSON.parse(cachedMessagesJson) as AdminMessage[];
+    console.log(`Loaded ${cachedMessages.length} messages from cache`);
+    return cachedMessages;
+  } catch (error) {
+    console.warn('Failed to load cached messages:', error);
+    return null;
+  }
+};
+
+// Initialize admin messages - now supports MongoDB and caching
+export const initializeAdminMessages = async (): Promise<void> => {
+  // Set a timeout for the entire operation
+  let timeoutId: NodeJS.Timeout | null = null;
+  
+  try {
+    // Create a promise that will reject after 5 seconds
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Initialize admin messages timed out'));
+      }, 5000);
+    });
+    
+    // Create the actual initialization promise
+    const initPromise = (async () => {
+      try {
+        // First try to load from cache to show something quickly
+        const cachedMessages = await loadCachedMessages();
+        if (cachedMessages && cachedMessages.length > 0) {
+          inMemoryMessages = cachedMessages;
+          isInitialized = true;
+          console.log('Using cached messages while fetching fresh data');
+        }
+        
+        // Try to fetch fresh messages from MongoDB
+        const mongoMessages = await fetchMessagesFromMongoDB();
+        if (mongoMessages && mongoMessages.length > 0) {
+          inMemoryMessages = mongoMessages;
+          // Cache the fresh messages for future use
+          cacheMessages(mongoMessages);
+        } else if (!cachedMessages || cachedMessages.length === 0) {
+          // If no MongoDB messages and no cache, use sample data
+          inMemoryMessages = [...SAMPLE_MESSAGES];
+          console.log('Using sample messages as fallback');
+        }
+      } catch (error) {
+        console.warn('Error fetching messages from MongoDB, using cached or sample data:', error);
+        
+        // Try cached messages if fetching failed
+        if (!isInitialized) {
+          const cachedMessages = await loadCachedMessages();
+          if (cachedMessages && cachedMessages.length > 0) {
+            inMemoryMessages = cachedMessages;
+            console.log('Using cached messages due to fetch error');
+          } else {
+            // If no cache available, use sample data
+            inMemoryMessages = [...SAMPLE_MESSAGES];
+            console.log('Using sample messages as fallback');
+          }
+        }
+      }
+      isInitialized = true;
+    })();
+    
+    // Race the two promises
+    await Promise.race([initPromise, timeoutPromise]);
+  } catch (error) {
+    // Handle any errors (including timeout)
+    console.warn('Error or timeout initializing admin messages, using sample data:', error);
+    
+    // Try to load from cache as last resort
+    try {
+      const cachedMessages = await loadCachedMessages();
+      if (cachedMessages && cachedMessages.length > 0) {
+        inMemoryMessages = cachedMessages;
+        console.log('Loaded messages from cache after error');
+      } else {
+        inMemoryMessages = [...SAMPLE_MESSAGES];
+        console.log('Using sample messages after initialization error');
+      }
+    } catch (e) {
+      inMemoryMessages = [...SAMPLE_MESSAGES];
+      console.log('Using sample messages after all recovery attempts failed');
+    }
+    
     isInitialized = true;
+  } finally {
+    // Clean up the timeout
+    if (timeoutId) clearTimeout(timeoutId);
   }
 };
 

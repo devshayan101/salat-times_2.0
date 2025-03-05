@@ -39,27 +39,27 @@ export const darkTheme: ThemeColors = {
   primary: '#60A5FA', // Bright blue
   secondary: '#8B5CF6', // Purple
   accent: '#F59E0B', // Amber
-  background: '#111827', // Very dark blue-gray
-  surface: '#1F2937', // Dark blue-gray
+  background: '#0F172A', // Very dark blue-gray (darker for better contrast)
+  surface: '#1E293B', // Dark blue-gray
   error: '#EF4444', // Red
   
   // Text colors
-  textPrimary: '#FFFFFF',
-  textSecondary: '#D1D5DB',
-  textDisabled: '#9CA3AF',
+  textPrimary: '#F8FAFC', // Slightly off-white for better eye comfort
+  textSecondary: '#CBD5E1', // Light blue-gray
+  textDisabled: '#94A3B8', // Medium blue-gray
   
   // UI Elements
-  cardBackground: '#1F2937',
-  cardBorder: '#374151',
-  tabBarBackground: '#1F2937',
-  headerBackground: '#1F2937',
-  divider: '#374151',
+  cardBackground: '#1E293B',
+  cardBorder: '#334155',
+  tabBarBackground: '#0F172A',
+  headerBackground: '#1E293B',
+  divider: '#334155',
   
   // Status indicators
-  unread: '#60A5FA', // Blue
+  unread: '#38BDF8', // Bright blue
   highPriority: '#F87171', // Light red
-  success: '#10B981', // Green
-  warning: '#F59E0B', // Amber
+  success: '#34D399', // Emerald green
+  warning: '#FBBF24', // Amber
   
   // Specific components
   tasbihButtonBackground: '#3B82F6', // Vibrant blue
@@ -72,30 +72,30 @@ export const lightTheme: ThemeColors = {
   primary: '#2563EB', // Darker blue
   secondary: '#7C3AED', // Darker purple
   accent: '#D97706', // Darker amber
-  background: '#F9FAFB', // Light gray
+  background: '#F8FAFC', // Light blue-gray
   surface: '#FFFFFF', // White
   error: '#DC2626', // Darker red
   
   // Text colors
-  textPrimary: '#111827',
-  textSecondary: '#4B5563',
-  textDisabled: '#9CA3AF',
+  textPrimary: '#0F172A', // Very dark blue-gray
+  textSecondary: '#334155', // Dark blue-gray
+  textDisabled: '#94A3B8', // Medium blue-gray
   
   // UI Elements
   cardBackground: '#FFFFFF',
-  cardBorder: '#E5E7EB',
-  tabBarBackground: '#FFFFFF',
-  headerBackground: '#F3F4F6',
-  divider: '#E5E7EB',
+  cardBorder: '#E2E8F0',
+  tabBarBackground: '#F1F5F9',
+  headerBackground: '#F1F5F9',
+  divider: '#E2E8F0',
   
   // Status indicators
   unread: '#2563EB', // Blue
   highPriority: '#DC2626', // Red
-  success: '#059669', // Green
-  warning: '#D97706', // Amber
+  success: '#10B981', // Green
+  warning: '#F59E0B', // Amber
   
   // Specific components
-  tasbihButtonBackground: '#3B82F6', // Vibrant blue
+  tasbihButtonBackground: '#2563EB', // Vibrant blue
   tasbihButtonText: '#FFFFFF',
 };
 

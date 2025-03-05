@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PrayerTimeInfo } from '../utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../utils/ThemeContext';
 
 interface PrayerCardProps {
   name: string;
@@ -35,6 +36,8 @@ export const PrayerCard = React.memo(({
   onSoundToggle,
   onSoundLongPress
 }: PrayerCardProps) => {
+  const { theme, isDark } = useTheme();
+  
   const displayName = isAsr 
     ? `${name} (${asrMethod === 1 ? 'Shafi' : 'Hanafi'})`
     : isIsha
@@ -61,23 +64,31 @@ export const PrayerCard = React.memo(({
         isPressable && pressed && styles.pressed
       ]}>
       <LinearGradient
-        colors={isCurrentPrayer ? ['#1F4937', '#374151'] : ['#1F2937', '#374151']}
+        colors={isCurrentPrayer ? 
+          [theme.surface, isDark ? '#1F4937' : '#E6F7F1'] : 
+          [theme.surface, isDark ? '#374151' : '#F3F4F6']}
         style={[
           styles.prayerCard, 
-          isPressable && styles.pressableCard,
-          isCurrentPrayer && styles.currentPrayerCard
+          isPressable && {
+            borderWidth: 1,
+            borderColor: theme.primary
+          },
+          isCurrentPrayer && {
+            borderWidth: 2,
+            borderColor: theme.success
+          }
         ]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}>
         <View style={styles.prayerHeader}>
-          <Text style={styles.prayerName}>{displayName}</Text>
+          <Text style={[styles.prayerName, { color: theme.textPrimary }]}>{displayName}</Text>
           {isPressable && (
-            <Text style={styles.pressableHint}>Press for {displayChange}</Text>
+            <Text style={[styles.pressableHint, { color: theme.textDisabled }]}>Press for {displayChange}</Text>
           )}
         </View>
         <View style={styles.timeContainer}>
           <View style={styles.timeRow}>
-            <Text style={styles.prayerTime}>{time}</Text>
+            <Text style={[styles.prayerTime, { color: theme.primary }]}>{time}</Text>
             {isMainPrayer && onSoundToggle && (
               <Pressable
                 onPress={(e) => {
@@ -99,10 +110,10 @@ export const PrayerCard = React.memo(({
                   <Ionicons 
                     name={soundEnabled ? "volume-high" : "volume-mute"} 
                     size={24} 
-                    color={soundEnabled ? "#60A5FA" : "#9CA3AF"}
+                    color={soundEnabled ? theme.primary : theme.textDisabled}
                   />
                   {soundEnabled && soundType !== 'default_beep' && (
-                    <Text style={styles.soundTypeIndicator}>
+                    <Text style={[styles.soundTypeIndicator, { color: theme.textSecondary }]}>
                       {soundType === 'default' ? 'Default' : 
                        soundType === 'none' ? 'Silent' :
                        soundType.charAt(0).toUpperCase() + soundType.slice(1)}
@@ -113,7 +124,7 @@ export const PrayerCard = React.memo(({
             )}
           </View>
           {isCurrentPrayer && currentPrayer && (
-            <Text style={styles.countdownText}>
+            <Text style={[styles.countdownText, { color: theme.success }]}>
               Time remaining: {currentPrayer.remainingTime}
             </Text>
           )}
@@ -143,14 +154,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  pressableCard: {
-    borderWidth: 1,
-    borderColor: '#60A5FA',
-  },
-  currentPrayerCard: {
-    borderWidth: 2,
-    borderColor: '#10B981',
-  },
   prayerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -158,7 +161,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   prayerName: {
-    color: '#F3F4F6',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
@@ -173,17 +175,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   prayerTime: {
-    color: '#60A5FA',
     fontSize: 24,
     fontWeight: '700',
   },
   pressableHint: {
-    color: '#9CA3AF',
     fontSize: 12,
     fontStyle: 'italic',
   },
   countdownText: {
-    color: '#10B981',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -195,7 +194,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   soundTypeIndicator: {
-    color: '#9CA3AF',
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,

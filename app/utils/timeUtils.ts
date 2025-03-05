@@ -4,6 +4,7 @@ export interface PrayerTimeInfo {
   timeInMs: number;
   isCurrentPrayer: boolean;
   percentageRemaining: number;
+  endTimeMs: number;
 }
 
 function convertPrayerTimeToDate(prayerTime: string, baseDate: Date): Date {
@@ -77,6 +78,7 @@ export function getPrayerTimes(prayerTimes: Record<string, string>): PrayerTimeI
     remainingTime: formatRemainingTime(timeUntilEnd),
     timeInMs: timeUntilEnd,
     isCurrentPrayer: true,
-    percentageRemaining
+    percentageRemaining,
+    endTimeMs: nextPrayer.date.getTime()
   };
 } 

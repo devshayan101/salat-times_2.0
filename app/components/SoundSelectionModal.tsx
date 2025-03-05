@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SOUND_OPTIONS } from '../services/notificationService';
+import { SOUND_OPTIONS, NOTIFICATION_SOUNDS } from '../services/notificationService';
+import { useTheme } from '../utils/ThemeContext';
+import * as Notifications from 'expo-notifications';
 
 interface SoundSelectionModalProps {
   visible: boolean;
@@ -18,13 +20,51 @@ export const SoundSelectionModal = ({
   currentSound,
   onSoundChange 
 }: SoundSelectionModalProps) => {
-  // Log the modal state for debugging
+  const { theme, isDark } = useTheme();
+  const [selectedSound, setSelectedSound] = useState(currentSound);
+  
+  // Reset selected sound when modal opens
   useEffect(() => {
     if (visible) {
+      setSelectedSound(currentSound);
       console.log(`Sound selection modal opened for ${prayerName}. Current sound: ${currentSound}`);
-      console.log('Available sound options:', SOUND_OPTIONS);
     }
-  }, [visible, prayerName, currentSound]);
+  }, [visible, currentSound, prayerName]);
+
+  // Function to play a sample of the selected sound
+  const playSoundPreview = async (soundId: string) => {
+    if (Platform.OS === 'web') return;
+
+    try {
+      // Don't play if "none" is selected
+      if (soundId === 'none') return;
+      
+      // Get the actual sound value from our mapping
+      const actualSound = NOTIFICATION_SOUNDS[soundId] || soundId;
+      
+      // Create a temporary notification to play the sound
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Sound Preview: ${soundId}`,
+          body: `Testing sound for ${prayerName} prayer`,
+          sound: actualSound,
+          autoDismiss: true,
+          data: { previewOnly: true }
+        },
+        trigger: null, // Immediate
+      });
+      
+      console.log(`Previewing sound: ${soundId}`);
+    } catch (error) {
+      console.error('Error playing sound preview:', error);
+    }
+  };
+  
+  // Function to save the selected sound
+  const saveSelectedSound = () => {
+    onSoundChange(selectedSound);
+    onClose();
+  };
 
   return (
     <Modal
@@ -34,14 +74,16 @@ export const SoundSelectionModal = ({
       onRequestClose={onClose}
     >
       <View style={styles.centeredView}>
-        <View style={styles.modalView}>
+        <View style={[styles.modalView, { backgroundColor: theme.cardBackground }]}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Sound for {prayerName}</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>
+              Select Sound for {prayerName}
+            </Text>
             <Pressable
               style={styles.closeButton}
               onPress={onClose}
             >
-              <Ionicons name="close" size={24} color="#9CA3AF" />
+              <Ionicons name="close" size={24} color={theme.textSecondary} />
             </Pressable>
           </View>
           
@@ -51,22 +93,28 @@ export const SoundSelectionModal = ({
                 key={option.value}
                 style={[
                   styles.soundOption,
-                  currentSound === option.value && styles.selectedOption
+                  { backgroundColor: isDark ? '#2D3748' : '#F1F5F9' },
+                  selectedSound === option.value && [
+                    styles.selectedOption, 
+                    { borderColor: theme.primary, backgroundColor: isDark ? '#374151' : '#E2E8F0' }
+                  ]
                 ]}
                 activeOpacity={0.7}
                 onPress={() => {
-                  console.log(`Selected sound: ${option.value} for ${prayerName}`);
-                  onSoundChange(option.value);
+                  setSelectedSound(option.value);
+                  // Play sound preview
+                  playSoundPreview(option.value);
                 }}
               >
                 <Text style={[
                   styles.soundOptionText,
-                  currentSound === option.value && styles.selectedOptionText
+                  { color: theme.textPrimary },
+                  selectedSound === option.value && { color: theme.primary, fontWeight: '600' }
                 ]}>
                   {option.label}
                 </Text>
-                {currentSound === option.value && (
-                  <Ionicons name="checkmark-circle" size={24} color="#60A5FA" />
+                {selectedSound === option.value && (
+                  <Ionicons name="checkmark-circle" size={24} color={theme.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -74,8 +122,15 @@ export const SoundSelectionModal = ({
           
           <View style={styles.footer}>
             <TouchableOpacity 
-              style={styles.saveButton}
+              style={[styles.cancelButton, { borderColor: theme.divider }]}
               onPress={onClose}
+            >
+              <Text style={[styles.cancelButtonText, { color: theme.textPrimary }]}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={saveSelectedSound}
             >
               <Text style={styles.saveButtonText}>Save</Text>
             </TouchableOpacity>
@@ -96,7 +151,6 @@ const styles = StyleSheet.create({
   modalView: {
     width: '90%',
     maxHeight: '80%',
-    backgroundColor: '#1F2937',
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -115,7 +169,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    color: '#F3F4F6',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -134,31 +187,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#2D3748',
   },
   selectedOption: {
-    backgroundColor: '#374151',
     borderWidth: 1,
-    borderColor: '#60A5FA',
   },
   soundOptionText: {
-    color: '#D1D5DB',
     fontSize: 16,
-  },
-  selectedOptionText: {
-    color: '#F9FAFB',
-    fontWeight: '600',
   },
   footer: {
     marginTop: 10,
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  saveButton: {
-    backgroundColor: '#60A5FA',
+  cancelButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    width: '100%',
+    borderWidth: 1,
+    width: '48%',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  saveButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    width: '48%',
     alignItems: 'center',
   },
   saveButtonText: {
