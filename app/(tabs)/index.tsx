@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable, AppState, TouchableOpacity, Modal, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable, AppState, TouchableOpacity, Modal, Switch, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,8 +20,6 @@ import {
 } from '../services/notificationService';
 import { PrayerCard } from '../components/PrayerCard';
 import { NotificationToggle } from '../components/NotificationToggle';
-import { AsrMethodModal } from '../components/AsrMethodModal';
-import { IshaMethodModal } from '../components/IshaMethodModal';
 import { SoundSelectionModal } from '../components/SoundSelectionModal';
 import { SehriIftarCard } from '../components/SehriIftarCard';
 import { AltitudeInputModal } from '../components/AltitudeInputModal';
@@ -39,6 +37,7 @@ const MANUAL_ALTITUDE_KEY = 'MANUAL_ALTITUDE';
 const USE_MANUAL_ALTITUDE_KEY = 'USE_MANUAL_ALTITUDE';
 const ASR_METHOD_KEY = 'ASR_METHOD';
 const ISHA_METHOD_KEY = 'ISHA_METHOD';
+const MADHAB_KEY = 'MADHAB_KEY';
 
 const TimerSection = ({ 
   currentPrayer, 
@@ -158,6 +157,7 @@ export default function PrayerTimesScreen() {
   const [showIshaModal, setShowIshaModal] = useState(false);
   const [asrMethod, setAsrMethod] = useState(2); // Default to Hanafi method
   const [ishaMethod, setIshaMethod] = useState(1); // Default to Hanafi method
+  const [isHanafiMadhab, setIsHanafiMadhab] = useState(true); // Add unified madhab state
   const [currentPrayer, setCurrentPrayer] = useState<PrayerTimeInfo | null>(null);
   const [appState, setAppState] = useState(AppState.currentState);
   const [showLocationDetails, setShowLocationDetails] = useState(false);
@@ -198,9 +198,29 @@ export default function PrayerTimesScreen() {
         const savedAltitude = await AsyncStorage.getItem(MANUAL_ALTITUDE_KEY);
         const savedUseManual = await AsyncStorage.getItem(USE_MANUAL_ALTITUDE_KEY);
         
-        // Load prayer method settings
-        const savedAsrMethod = await AsyncStorage.getItem(ASR_METHOD_KEY);
-        const savedIshaMethod = await AsyncStorage.getItem(ISHA_METHOD_KEY);
+        // Load prayer method settings - check for unified madhab setting first
+        const savedMadhab = await AsyncStorage.getItem(MADHAB_KEY);
+        
+        if (savedMadhab !== null) {
+          // Use the unified madhab setting
+          const isHanafi = savedMadhab === 'hanafi';
+          // Set method values based on madhab
+          setAsrMethod(isHanafi ? 2 : 1); // Hanafi: 2, Shafi: 1
+          setIshaMethod(isHanafi ? 1 : 2); // Hanafi: 1, Shafi: 2
+          setIsHanafiMadhab(isHanafi);
+        } else {
+          // Fallback to individual method settings
+          const savedAsrMethod = await AsyncStorage.getItem(ASR_METHOD_KEY);
+          const savedIshaMethod = await AsyncStorage.getItem(ISHA_METHOD_KEY);
+          
+          if (savedAsrMethod !== null) {
+            setAsrMethod(parseInt(savedAsrMethod));
+          }
+          
+          if (savedIshaMethod !== null) {
+            setIshaMethod(parseInt(savedIshaMethod));
+          }
+        }
         
         if (savedAltitude !== null) {
           setManualAltitude(parseFloat(savedAltitude));
@@ -208,14 +228,6 @@ export default function PrayerTimesScreen() {
         
         if (savedUseManual !== null) {
           setUseManualAltitude(savedUseManual === 'true');
-        }
-        
-        if (savedAsrMethod !== null) {
-          setAsrMethod(parseInt(savedAsrMethod));
-        }
-        
-        if (savedIshaMethod !== null) {
-          setIshaMethod(parseInt(savedIshaMethod));
         }
       } catch (error) {
         console.error('Error loading saved settings:', error);
@@ -390,7 +402,11 @@ export default function PrayerTimesScreen() {
         coords.altitude = manualAltitude;
       }
       
-      const calculatedTimes = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
+      // Calculate method values based on the unified madhab setting
+      const asr = isHanafiMadhab ? 2 : 1;  // Hanafi: 2, Shafi: 1
+      const isha = isHanafiMadhab ? 1 : 2; // Hanafi: 1, Shafi: 2
+      
+      const calculatedTimes = calculatePrayerTimes(date, coords, asr, isha);
       setPrayerTimes(calculatedTimes);
 
       // Setup notifications if enabled
@@ -655,7 +671,11 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Asr} 
               isAsr={true}
               asrMethod={asrMethod}
-              onAsrPress={() => setShowAsrModal(true)}
+              onAsrPress={() => Alert.alert(
+                'Prayer Method Settings',
+                'Prayer calculation methods can now be changed in the Settings screen using the unified Madhab toggle.',
+                [{ text: 'OK' }]
+              )}
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Asr.enabled}
               soundType={prayerSounds.Asr.sound}
@@ -676,7 +696,11 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Isha}
               isIsha={true}
               ishaMethod={ishaMethod}
-              onIshaPress={() => setShowIshaModal(true)}
+              onIshaPress={() => Alert.alert(
+                'Prayer Method Settings',
+                'Prayer calculation methods can now be changed in the Settings screen using the unified Madhab toggle.',
+                [{ text: 'OK' }]
+              )}
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Isha.enabled}
               soundType={prayerSounds.Isha.sound}
@@ -700,20 +724,6 @@ export default function PrayerTimesScreen() {
         )}
       </ScrollView>
 
-      <AsrMethodModal
-        visible={showAsrModal}
-        onClose={() => setShowAsrModal(false)}
-        selectedMethod={asrMethod}
-        onMethodChange={setAsrMethod}
-      />
-
-      <IshaMethodModal
-        visible={showIshaModal}
-        onClose={() => setShowIshaModal(false)}
-        selectedMethod={ishaMethod}
-        onMethodChange={setIshaMethod}
-      />
-      
       <SoundSelectionModal
         visible={showSoundModal}
         onClose={() => setShowSoundModal(false)}

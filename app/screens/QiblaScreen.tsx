@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
 import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
 import Animated, {
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../utils/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 const KAABA_COORDS = {
   latitude: 21.4225,
@@ -26,11 +27,15 @@ export default function QiblaScreen() {
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
   const router = useRouter();
+  const isFocused = useIsFocused();
+  const headingSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const appState = useRef(AppState.currentState);
 
+  // Setup location and calculate Qibla direction
   useEffect(() => {
-    let headingSubscription: Location.LocationSubscription | null = null;
-
-    (async () => {
+    let isMounted = true;
+    
+    const setupLocation = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
@@ -39,44 +44,89 @@ export default function QiblaScreen() {
         }
 
         const location = await Location.getCurrentPositionAsync({});
-        setLocation(location);
+        if (isMounted) {
+          setLocation(location);
 
-        // Calculate Qibla direction
-        const lat1 = location.coords.latitude * (Math.PI / 180);
-        const lon1 = location.coords.longitude * (Math.PI / 180);
-        const lat2 = KAABA_COORDS.latitude * (Math.PI / 180);
-        const lon2 = KAABA_COORDS.longitude * (Math.PI / 180);
+          // Calculate Qibla direction
+          const lat1 = location.coords.latitude * (Math.PI / 180);
+          const lon1 = location.coords.longitude * (Math.PI / 180);
+          const lat2 = KAABA_COORDS.latitude * (Math.PI / 180);
+          const lon2 = KAABA_COORDS.longitude * (Math.PI / 180);
 
-        const y = Math.sin(lon2 - lon1);
-        const x = Math.cos(lat1) * Math.tan(lat2) - Math.sin(lat1) * Math.cos(lon2 - lon1);
-        const qibla = Math.atan2(y, x) * (180 / Math.PI);
-        qiblaDirectionValue.value = qibla;
-
-        // Start watching heading
-        headingSubscription = await startWatchingHeading();
+          const y = Math.sin(lon2 - lon1);
+          const x = Math.cos(lat1) * Math.tan(lat2) - Math.sin(lat1) * Math.cos(lon2 - lon1);
+          const qibla = Math.atan2(y, x) * (180 / Math.PI);
+          qiblaDirectionValue.value = qibla;
+        }
       } catch (err) {
-        setError('Failed to determine Qibla direction');
-      }
-    })();
-
-    return () => {
-      // Clean up the heading subscription when component unmounts
-      if (headingSubscription) {
-        headingSubscription.remove();
+        if (isMounted) {
+          setError('Failed to determine Qibla direction');
+        }
       }
     };
-  }, []);
+
+    if (isFocused) {
+      setupLocation();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isFocused]);
+
+  // Handle heading subscription based on focus state
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        // App is going to background, clean up resources
+        cleanupHeadingSubscription();
+      } else if (appState.current.match(/inactive|background/) && nextAppState === 'active' && isFocused) {
+        // App is coming to foreground and screen is focused, restart subscription
+        startWatchingHeading();
+      }
+      appState.current = nextAppState;
+    };
+
+    // Subscribe to AppState changes for additional cleanup
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Start or stop watching heading based on focus
+    if (isFocused) {
+      startWatchingHeading();
+    } else {
+      cleanupHeadingSubscription();
+    }
+
+    return () => {
+      cleanupHeadingSubscription();
+      subscription.remove();
+    };
+  }, [isFocused]);
+
+  const cleanupHeadingSubscription = () => {
+    if (headingSubscriptionRef.current) {
+      headingSubscriptionRef.current.remove();
+      headingSubscriptionRef.current = null;
+      console.log('Cleaned up heading subscription');
+    }
+  };
 
   const startWatchingHeading = async () => {
     try {
-      return await Location.watchHeadingAsync((headingData) => {
-        const newHeading = headingData.trueHeading || headingData.magHeading;
-        setHeading(newHeading);
-        headingValue.value = newHeading;
-      });
+      // Clean up any existing subscription first
+      cleanupHeadingSubscription();
+
+      // Only start a new subscription if we're focused
+      if (isFocused) {
+        headingSubscriptionRef.current = await Location.watchHeadingAsync((headingData) => {
+          const newHeading = headingData.trueHeading || headingData.magHeading;
+          setHeading(newHeading);
+          headingValue.value = newHeading;
+        });
+        console.log('Started heading subscription');
+      }
     } catch (err) {
       setError('Failed to access compass. Please check if your device has a compass sensor.');
-      return null;
     }
   };
 
@@ -110,50 +160,7 @@ export default function QiblaScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background, zIndex: 1 }]}>
       <Text style={[styles.title, { color: theme.textPrimary }]}>Qibla Direction</Text>
       <View style={[styles.compassContainer, { backgroundColor: theme.surface }]}>
-        <Animated.View style={[styles.compass, animatedStyle]}>
-          <Svg height="200" width="200" viewBox="0 0 100 100">
-            {/* Kaaba Icon */}
-            <Path
-              d="M30 30 L70 30 L70 70 L30 70 Z"
-              fill="#000000"
-              stroke="#000000"
-              strokeWidth="2"
-            />
-            {/* Kaaba Door */}
-            <Path
-              d="M45 70 L45 55 L55 55 L55 70"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="2"
-            />
-            {/* Kiswa Pattern - Gold Decoration */}
-            <Path
-              d="M30 40 L70 40"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="1"
-            />
-            <Path
-              d="M30 50 L70 50"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="1"
-            />
-            <Path
-              d="M30 60 L70 60"
-              fill="none"
-              stroke="#D4AF37"
-              strokeWidth="1"
-            />
-            {/* Direction Indicator */}
-            <Path
-              d="M50 10 L45 25 L50 20 L55 25 Z"
-              fill={theme.primary}
-              stroke={theme.divider}
-              strokeWidth="1"
-            />
-          </Svg>
-        </Animated.View>
+      
       </View>
       <Text style={[styles.coordinates, { color: theme.textSecondary }]}>
         {location

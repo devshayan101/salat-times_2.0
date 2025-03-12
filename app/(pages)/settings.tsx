@@ -6,13 +6,13 @@ import { calculateHijriDate, getHijriAdjustment, setHijriAdjustment, formatHijri
 import { Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermissions } from '../services/notificationService';
-import { AsrMethodModal } from '../components/AsrMethodModal';
-import { IshaMethodModal } from '../components/IshaMethodModal';
+import { PrayerMethodToggle } from '../components/PrayerMethodToggle';
 
 // Storage keys
 const NOTIFICATIONS_ENABLED_KEY = 'NOTIFICATIONS_ENABLED';
 const ASR_METHOD_KEY = 'ASR_METHOD';
 const ISHA_METHOD_KEY = 'ISHA_METHOD';
+const MADHAB_KEY = 'MADHAB_KEY'; // New key for combined setting
 
 //Add Hanafi and Shafi toggle settings
 
@@ -21,10 +21,9 @@ export default function SettingsScreen() {
   const [hijriAdjustment, setHijriAdjustmentState] = useState(0);
   const [currentHijriDate, setCurrentHijriDate] = useState(calculateHijriDate(new Date()));
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [asrMethod, setAsrMethod] = useState(1); // Default: 1 for Shafi, 2 for Hanafi
-  const [ishaMethod, setIshaMethod] = useState(1); // Default: 1 for Hanafi, 2 for Shafi
-  const [showAsrModal, setShowAsrModal] = useState(false);
-  const [showIshaModal, setShowIshaModal] = useState(false);
+  
+  // Replace separate method states with a single madhab state
+  const [isHanafiMadhab, setIsHanafiMadhab] = useState(true); // Default to Hanafi
   
   // Load the current Hijri adjustment and notification preferences
   useEffect(() => {
@@ -38,16 +37,24 @@ export default function SettingsScreen() {
       const notificationPref = await AsyncStorage.getItem(NOTIFICATIONS_ENABLED_KEY);
       setNotificationsEnabled(notificationPref === 'true');
       
-      // Load Asr method
-      const savedAsrMethod = await AsyncStorage.getItem(ASR_METHOD_KEY);
-      if (savedAsrMethod) {
-        setAsrMethod(Number(savedAsrMethod));
-      }
-      
-      // Load Isha method
-      const savedIshaMethod = await AsyncStorage.getItem(ISHA_METHOD_KEY);
-      if (savedIshaMethod) {
-        setIshaMethod(Number(savedIshaMethod));
+      // Load madhab preference (new unified setting)
+      const savedMadhab = await AsyncStorage.getItem(MADHAB_KEY);
+      if (savedMadhab !== null) {
+        setIsHanafiMadhab(savedMadhab === 'hanafi');
+      } else {
+        // For backward compatibility, check the old separate method settings
+        const savedAsrMethod = await AsyncStorage.getItem(ASR_METHOD_KEY);
+        const savedIshaMethod = await AsyncStorage.getItem(ISHA_METHOD_KEY);
+        
+        // If both are set to Hanafi or both to Shafi, use that
+        if (savedAsrMethod === '2' && savedIshaMethod === '1') {
+          // Both are Hanafi
+          setIsHanafiMadhab(true);
+        } else if (savedAsrMethod === '1' && savedIshaMethod === '2') {
+          // Both are Shafi
+          setIsHanafiMadhab(false);
+        }
+        // Otherwise keep the default (Hanafi)
       }
     };
     
@@ -60,215 +67,184 @@ export default function SettingsScreen() {
     setCurrentHijriDate(hijriDate);
   };
   
-  // Adjust the Hijri date by the specified number of days
+  // Adjust the Hijri date by increasing or decreasing days
   const adjustHijriDate = async (days: number) => {
     const newAdjustment = hijriAdjustment + days;
+    await setHijriAdjustment(newAdjustment);
     setHijriAdjustmentState(newAdjustment);
     updateHijriDate(newAdjustment);
-    await setHijriAdjustment(newAdjustment);
   };
   
   // Reset the Hijri date adjustment to 0
   const resetHijriAdjustment = async () => {
-    Alert.alert(
-      'Reset Hijri Date',
-      'Are you sure you want to reset the Hijri date adjustment?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Reset',
-          onPress: async () => {
-            setHijriAdjustmentState(0);
-            updateHijriDate(0);
-            await setHijriAdjustment(0);
-          }
+    await setHijriAdjustment(0);
+    setHijriAdjustmentState(0);
+    updateHijriDate(0);
+  };
+  
+  // Toggle the notification preference
+  const toggleNotifications = async () => {
+    try {
+      const newValue = !notificationsEnabled;
+      
+      if (newValue) {
+        // Request permissions when enabling notifications
+        const permissionGranted = await requestNotificationPermissions();
+        if (!permissionGranted) {
+          Alert.alert(
+            'Permission Required',
+            'Please enable notifications in your device settings to receive prayer time alerts.',
+            [{ text: 'OK' }]
+          );
+          return;
         }
-      ]
+      }
+      
+      await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, newValue.toString());
+      setNotificationsEnabled(newValue);
+      
+    } catch (error) {
+      console.error('Error toggling notifications:', error);
+    }
+  };
+  
+  // Toggle between Hanafi and Shafi madhab
+  const toggleMadhab = async () => {
+    const newValue = !isHanafiMadhab;
+    setIsHanafiMadhab(newValue);
+    
+    // Save the unified madhab preference
+    await AsyncStorage.setItem(MADHAB_KEY, newValue ? 'hanafi' : 'shafi');
+    
+    // Also update the individual method settings for backward compatibility
+    if (newValue) {
+      // Hanafi
+      await AsyncStorage.setItem(ASR_METHOD_KEY, '2'); // Hanafi for Asr
+      await AsyncStorage.setItem(ISHA_METHOD_KEY, '1'); // Hanafi for Isha
+    } else {
+      // Shafi
+      await AsyncStorage.setItem(ASR_METHOD_KEY, '1'); // Shafi for Asr
+      await AsyncStorage.setItem(ISHA_METHOD_KEY, '2'); // Shafi for Isha
+    }
+    
+    // Show confirmation to the user
+    Alert.alert(
+      'Settings Updated',
+      `Prayer time calculations will now use ${newValue ? 'Hanafi' : 'Shafi'} method.`,
+      [{ text: 'OK' }]
     );
   };
   
-  // Toggle notifications and request permissions if needed
-  const toggleNotifications = async () => {
-    const newValue = !notificationsEnabled;
-    
-    if (newValue) {
-      // Request permission when enabling notifications
-      const granted = await requestNotificationPermissions();
-      
-      if (!granted) {
-        Alert.alert(
-          'Permission Required',
-          'Please enable notifications in your device settings to receive prayer time alerts.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-    }
-    
-    // Save the new preference
-    setNotificationsEnabled(newValue);
-    await AsyncStorage.setItem(NOTIFICATIONS_ENABLED_KEY, String(newValue));
-  };
-  
-  // Handle Asr method change
-  const handleAsrMethodChange = async (method: number) => {
-    setAsrMethod(method);
-    await AsyncStorage.setItem(ASR_METHOD_KEY, String(method));
-  };
-  
-  // Handle Isha method change
-  const handleIshaMethodChange = async (method: number) => {
-    setIshaMethod(method);
-    await AsyncStorage.setItem(ISHA_METHOD_KEY, String(method));
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen 
+    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+      <Stack.Screen
         options={{
           title: 'Settings',
-          headerStyle: { backgroundColor: theme.headerBackground },
-          headerTintColor: theme.textPrimary
+          headerTitleStyle: { color: theme.textPrimary },
         }}
       />
       
-      <ScrollView style={styles.scrollView}>
+      <View style={styles.content}>
+        {/* Hijri Date Adjustment */}
         <View style={[styles.section, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Appearance</Text>
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Dark Mode</Text>
-            <TouchableOpacity onPress={toggleTheme} style={styles.themeToggle}>
-              <Ionicons 
-                name={isDark ? 'sunny-outline' : 'moon-outline'} 
-                size={24} 
-                color={theme.primary} 
-              />
-              <Text style={[styles.themeLabel, { color: theme.textSecondary }]}>
-                {isDark ? 'Light Mode' : 'Dark Mode'}
-              </Text>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Hijri Date Adjustment</Text>
+          
+          <View style={styles.hijriDateContainer}>
+            <Text style={[styles.hijriDate, { color: theme.textPrimary }]}>
+              {formatHijriDate(currentHijriDate)}
+            </Text>
+          </View>
+          
+          <View style={styles.adjustmentControls}>
+            <TouchableOpacity 
+              style={[styles.adjustButton, { backgroundColor: theme.primary }]} 
+              onPress={() => adjustHijriDate(-1)}
+            >
+              <Text style={styles.adjustButtonText}>-1 Day</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.adjustButton, { backgroundColor: theme.secondary }]} 
+              onPress={() => resetHijriAdjustment()}
+            >
+              <Text style={styles.adjustButtonText}>Reset</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.adjustButton, { backgroundColor: theme.primary }]} 
+              onPress={() => adjustHijriDate(1)}
+            >
+              <Text style={styles.adjustButtonText}>+1 Day</Text>
             </TouchableOpacity>
           </View>
-        </View>
-        
-        <View style={[styles.section, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Prayer Time Calculation</Text>
-          
-          <TouchableOpacity
-            style={styles.settingRow}
-            onPress={() => setShowAsrModal(true)}
-          >
-            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Asr Calculation Method</Text>
-            <View style={styles.valueContainer}>
-              <Text style={[styles.valueText, { color: theme.textSecondary }]}>
-                {asrMethod === 1 ? 'Shafi Method' : 'Hanafi Method'}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
-            </View>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.settingRow}
-            onPress={() => setShowIshaModal(true)}
-          >
-            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Isha Calculation Method</Text>
-            <View style={styles.valueContainer}>
-              <Text style={[styles.valueText, { color: theme.textSecondary }]}>
-                {ishaMethod === 1 ? 'Hanafi Method' : 'Shafi Method'}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.textDisabled} />
-            </View>
-          </TouchableOpacity>
           
           <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
-            Choose calculation methods based on your madhab for accurate prayer times.
+            Adjust the Hijri date if needed to match your local moon sighting.
           </Text>
         </View>
         
+        {/* Prayer Time Calculation with unified toggle */}
+        <View style={[styles.section, { backgroundColor: theme.surface }]}>
+          <PrayerMethodToggle 
+            isHanafi={isHanafiMadhab}
+            onToggle={toggleMadhab}
+          />
+        </View>
+        
+        {/* Notification Settings */}
         <View style={[styles.section, { backgroundColor: theme.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Notifications</Text>
+          
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Prayer Time Alerts</Text>
+            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Prayer Time Notifications</Text>
             <Switch
               value={notificationsEnabled}
               onValueChange={toggleNotifications}
-              trackColor={{ false: theme.divider, true: theme.primary + '70' }}
-              thumbColor={notificationsEnabled ? theme.primary : theme.textDisabled}
+              trackColor={{ false: '#767577', true: theme.primary }}
+              thumbColor={notificationsEnabled ? '#f4f3f4' : '#f4f3f4'}
+              ios_backgroundColor="#3e3e3e"
             />
           </View>
+          
           <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
-            Receive notifications for prayer times even when the app is closed.
+            Receive notifications for prayer times, even when the app is closed.
           </Text>
         </View>
         
+        {/* Theme Settings */}
         <View style={[styles.section, { backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Hijri Calendar</Text>
+          <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>Appearance</Text>
           
-          <View style={styles.hijriDateContainer}>
-            <Text style={[styles.currentHijriDate, { color: theme.primary }]}>
-              {formatHijriDate(currentHijriDate)}
-            </Text>
-            <Text style={[styles.hijriAdjustment, { color: theme.textSecondary }]}>
-              Adjustment: {hijriAdjustment > 0 ? '+' : ''}{hijriAdjustment} days
-            </Text>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, { color: theme.textPrimary }]}>Dark Mode</Text>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: '#767577', true: theme.primary }}
+              thumbColor={isDark ? '#f4f3f4' : '#f4f3f4'}
+              ios_backgroundColor="#3e3e3e"
+            />
           </View>
           
-          <Text style={[styles.hijriCalibrationInfo, { color: theme.textSecondary }]}>
-            Adjust the Hijri date to match the local moon sighting in your region.
+          <Text style={[styles.settingDescription, { color: theme.textSecondary }]}>
+            Switch between light and dark themes.
           </Text>
-          
-          <View style={styles.adjustmentButtons}>
-            <TouchableOpacity 
-              style={[styles.adjustButton, { backgroundColor: theme.primary + '20' }]}
-              onPress={() => adjustHijriDate(-1)}
-            >
-              <Text style={[styles.adjustButtonText, { color: theme.primary }]}>-1 Day</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.resetButton, { borderColor: theme.divider }]}
-              onPress={resetHijriAdjustment}
-            >
-              <Text style={[styles.resetButtonText, { color: theme.textSecondary }]}>Reset</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.adjustButton, { backgroundColor: theme.primary + '20' }]}
-              onPress={() => adjustHijriDate(1)}
-            >
-              <Text style={[styles.adjustButtonText, { color: theme.primary }]}>+1 Day</Text>
-            </TouchableOpacity>
-          </View>
         </View>
         
+        {/* About Section */}
         <View style={[styles.section, { backgroundColor: theme.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>About</Text>
-          <Text style={[styles.versionText, { color: theme.textSecondary }]}>
-            SalatTimes v2.0.0
+          
+          <Text style={[styles.aboutText, { color: theme.textSecondary }]}>
+            SalatTimes v1.0.0
           </Text>
-          <Text style={[styles.copyrightText, { color: theme.textSecondary }]}>
-            © 2024 Sawadeazam
+          
+          <Text style={[styles.aboutDescription, { color: theme.textSecondary }]}>
+            Developed by SawadeAzam for the Muslim community
           </Text>
         </View>
-      </ScrollView>
-      
-      {/* Modals */}
-      <AsrMethodModal
-        visible={showAsrModal}
-        onClose={() => setShowAsrModal(false)}
-        selectedMethod={asrMethod}
-        onMethodChange={handleAsrMethodChange}
-      />
-      
-      <IshaMethodModal
-        visible={showIshaModal}
-        onClose={() => setShowIshaModal(false)}
-        selectedMethod={ishaMethod}
-        onMethodChange={handleIshaMethodChange}
-      />
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -276,7 +252,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
+  content: {
     flex: 1,
     padding: 16,
   },
@@ -306,46 +282,16 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
   },
-  themeToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  themeLabel: {
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  valueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  valueText: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  settingDescription: {
-    fontSize: 14,
-    marginTop: 8,
-    opacity: 0.7,
-  },
   hijriDateContainer: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  currentHijriDate: {
+  hijriDate: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  hijriAdjustment: {
-    fontSize: 14,
-  },
-  hijriCalibrationInfo: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
-  adjustmentButtons: {
+  adjustmentControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
@@ -363,26 +309,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  resetButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    borderWidth: 1,
-    marginHorizontal: 4,
-  },
-  resetButtonText: {
-    fontWeight: '600',
+  settingDescription: {
     fontSize: 14,
+    marginTop: 8,
+    opacity: 0.7,
   },
-  versionText: {
+  aboutText: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 4,
   },
-  copyrightText: {
+  aboutDescription: {
     fontSize: 14,
     textAlign: 'center',
     opacity: 0.7,

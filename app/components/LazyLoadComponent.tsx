@@ -22,7 +22,42 @@ export const LazyLoadComponent: React.FC<LazyLoadProps> = ({
   loadingMessage = 'Loading...'
 }) => {
   const { theme } = useTheme();
-  const LazyComponent = React.useMemo(() => lazy(importFunc), [importFunc]);
+  
+  // Use lazy with error handling to ensure the component is loaded correctly
+  const LazyComponent = React.useMemo(() => {
+    try {
+      return lazy(() => 
+        importFunc()
+          .then(module => {
+            // Check if module or module.default is undefined
+            if (!module || !module.default) {
+              console.error('Module or default export is undefined', module);
+              throw new Error('Component failed to load correctly');
+            }
+            return module;
+          })
+          .catch(error => {
+            console.error('Error loading component:', error);
+            // Return a simple fallback component if loading fails
+            return { 
+              default: () => (
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                  <Text>Failed to load component</Text>
+                </View>
+              ) 
+            };
+          })
+      );
+    } catch (error) {
+      console.error('Error in LazyLoadComponent:', error);
+      // Return a simple fallback component in case of error
+      return () => (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <Text>Failed to load component</Text>
+        </View>
+      );
+    }
+  }, [importFunc]);
 
   return (
     <Suspense 
