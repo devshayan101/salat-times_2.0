@@ -160,7 +160,50 @@ export default function QiblaScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background, zIndex: 1 }]}>
       <Text style={[styles.title, { color: theme.textPrimary }]}>Qibla Direction</Text>
       <View style={[styles.compassContainer, { backgroundColor: theme.surface }]}>
-      
+        <Animated.View style={[styles.compass, animatedStyle]}>
+          <Svg height="200" width="200" viewBox="0 0 100 100">
+            {/* Kaaba Icon */}
+            <Path
+              d="M30 30 L70 30 L70 70 L30 70 Z"
+              fill="#000000"
+              stroke="#000000"
+              strokeWidth="2"
+            />
+            {/* Kaaba Door */}
+            <Path
+              d="M45 70 L45 55 L55 55 L55 70"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="2"
+            />
+            {/* Kiswa Pattern - Gold Decoration */}
+            <Path
+              d="M30 40 L70 40"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            <Path
+              d="M30 50 L70 50"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            <Path
+              d="M30 60 L70 60"
+              fill="none"
+              stroke="#D4AF37"
+              strokeWidth="1"
+            />
+            {/* Direction Indicator */}
+            <Path
+              d="M50 10 L45 25 L50 20 L55 25 Z"
+              fill={theme.primary}
+              stroke={theme.divider}
+              strokeWidth="1"
+            />
+          </Svg>
+        </Animated.View>
       </View>
       <Text style={[styles.coordinates, { color: theme.textSecondary }]}>
         {location

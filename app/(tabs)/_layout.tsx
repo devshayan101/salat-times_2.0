@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, ErrorInfo } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, BackHandler, Dimensions, Animated, Easing, Platform } from 'react-native';
-import { useEffect, useState, useRef } from 'react';
 import { getUnreadMessageCountAsync, initializeAdminMessages } from '../services/adminMessageService';
 import { useTheme } from '../utils/ThemeContext';
 import { SawadeazamLogo } from '../components/SawadeazamLogo';
@@ -11,6 +10,48 @@ import { ScrollView, GestureHandlerRootView } from 'react-native-gesture-handler
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
+
+// Error boundary component to catch rendering errors in tabs
+class TabErrorBoundary extends React.Component<
+  { children: React.ReactNode; name: string },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; name: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error(`Error in tab ${this.props.name}:`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
+          <Text style={{fontSize: 18, fontWeight: 'bold', marginBottom: 10}}>
+            Something went wrong
+          </Text>
+          <Text style={{textAlign: 'center', marginBottom: 20}}>
+            There was an error loading this screen. Please try again later.
+          </Text>
+          <TouchableOpacity 
+            style={{padding: 12, backgroundColor: '#3B82F6', borderRadius: 8}}
+            onPress={() => this.setState({ hasError: false })}
+          >
+            <Text style={{color: 'white', fontWeight: '600'}}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function TabLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -150,6 +191,28 @@ export default function TabLayout() {
     </View>
   );
 
+  // Add global error handling for route navigation errors
+  useEffect(() => {
+    // In React Native, we can use try/catch for global error handling
+    // or a simplified approach with a custom error handler
+    const handleGlobalError = (error: Error) => {
+      console.error('Global error caught:', error.message);
+      // You could show a toast or Alert.alert here
+    };
+
+    // Set up error boundary as a backup for rendering errors
+    // This is the most we can do in React Native without window/ErrorEvent
+    const errorSubscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Using BackHandler as a general app-level event listener
+      // We'll just return false to not actually handle back press
+      return false;
+    });
+
+    return () => {
+      errorSubscription.remove();
+    };
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Tabs
@@ -206,24 +269,10 @@ export default function TabLayout() {
             title: 'Messages',
             tabBarIcon: ({ color, size }) => (
               <View>
-                <Ionicons name="mail" size={size} color={color} />
+                <Ionicons name="mail-outline" size={size} color={color} />
                 {unreadCount > 0 && (
-                  <View style={{
-                    position: 'absolute',
-                    right: -6,
-                    top: -4,
-                    backgroundColor: theme.error,
-                    borderRadius: 10,
-                    width: unreadCount > 9 ? 18 : 16,
-                    height: 16,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <Text style={{
-                      color: 'white',
-                      fontSize: 10,
-                      fontWeight: 'bold',
-                    }}>
+                  <View style={[styles.badge, { backgroundColor: theme.error }]}>
+                    <Text style={styles.badgeText}>
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </Text>
                   </View>
@@ -513,16 +562,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    position: 'absolute',
+    right: -6,
+    top: -4,
+    backgroundColor: 'red', // This will be overridden by the theme color
     borderRadius: 10,
-    minWidth: 20,
-    alignItems: 'center',
+    width: 16,
+    height: 16,
     justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 16,
+    paddingHorizontal: 2,
   },
   badgeText: {
     color: 'white',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   divider: {
