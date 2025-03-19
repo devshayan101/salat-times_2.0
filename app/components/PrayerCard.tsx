@@ -46,9 +46,9 @@ export const PrayerCard = React.memo(({
   const isPressable = isAsr || isIsha;
 
   const displayChange = isAsr 
-    ? `(${asrMethod === 1 ? 'Hanafi' : 'Shafi'})`
+    ? `(${asrMethod === 1 ? 'Hanafi' : 'Shafi'}) time`
     : isIsha
-    ? `(${ishaMethod === 1 ? 'Shafi' : 'Hanafi'})`
+    ? `(${ishaMethod === 1 ? 'Shafi' : 'Hanafi'}) time`
     : name;
 
   const isCurrentPrayer = currentPrayer?.name === name;

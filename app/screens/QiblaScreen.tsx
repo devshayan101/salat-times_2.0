@@ -97,16 +97,45 @@ export default function QiblaScreen() {
     }
 
     return () => {
-      cleanupHeadingSubscription();
-      subscription.remove();
+      try {
+        // Ensure we clean up the heading subscription when unmounting
+        cleanupHeadingSubscription();
+        
+        // And remove the AppState listener
+        subscription.remove();
+      } catch (error) {
+        console.error('Error in useEffect cleanup:', error);
+      }
     };
   }, [isFocused]);
 
   const cleanupHeadingSubscription = () => {
-    if (headingSubscriptionRef.current) {
-      headingSubscriptionRef.current.remove();
-      headingSubscriptionRef.current = null;
-      console.log('Cleaned up heading subscription');
+    try {
+      if (headingSubscriptionRef.current) {
+        // Properly remove the subscription with error handling
+        try {
+          headingSubscriptionRef.current.remove();
+        } catch (err) {
+          console.log('Error removing heading subscription:', err);
+          // Alternative cleanup method if the normal remove() fails
+          if (Platform.OS === 'android') {
+            // Cast to internal type to access private APIs safely
+            const locationInternal = Location as (typeof Location & {
+              _removeSubscription?: (subscription: Location.LocationSubscription) => void;
+            });
+            
+            if (locationInternal._removeSubscription && headingSubscriptionRef.current) {
+              locationInternal._removeSubscription(headingSubscriptionRef.current);
+            }
+          }
+        }
+        
+        // Always set the ref to null after attempting cleanup
+        headingSubscriptionRef.current = null;
+        console.log('Cleaned up heading subscription');
+      }
+    } catch (err) {
+      console.error('Error in cleanup function:', err);
     }
   };
 
@@ -117,14 +146,20 @@ export default function QiblaScreen() {
 
       // Only start a new subscription if we're focused
       if (isFocused) {
-        headingSubscriptionRef.current = await Location.watchHeadingAsync((headingData) => {
-          const newHeading = headingData.trueHeading || headingData.magHeading;
-          setHeading(newHeading);
-          headingValue.value = newHeading;
-        });
-        console.log('Started heading subscription');
+        try {
+          headingSubscriptionRef.current = await Location.watchHeadingAsync((headingData) => {
+            const newHeading = headingData.trueHeading || headingData.magHeading;
+            setHeading(newHeading);
+            headingValue.value = newHeading;
+          });
+          console.log('Started heading subscription');
+        } catch (err) {
+          console.error('Error starting heading subscription:', err);
+          setError('Failed to access compass. Please check if your device has a compass sensor.');
+        }
       }
     } catch (err) {
+      console.error('Error in startWatchingHeading:', err);
       setError('Failed to access compass. Please check if your device has a compass sensor.');
     }
   };

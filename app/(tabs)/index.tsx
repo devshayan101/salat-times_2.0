@@ -401,11 +401,9 @@ export default function PrayerTimesScreen() {
         coords.altitude = manualAltitude;
       }
       
-      // Calculate method values based on the unified madhab setting
-      const asr = isHanafiMadhab ? 2 : 1;  // Hanafi: 2, Shafi: 1
-      const isha = isHanafiMadhab ? 1 : 2; // Hanafi: 1, Shafi: 2
-      
-      const calculatedTimes = calculatePrayerTimes(date, coords, asr, isha);
+      // Use the actual method values that have been set individually
+      // instead of deriving them from isHanafiMadhab
+      const calculatedTimes = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
       setPrayerTimes(calculatedTimes);
 
       // Setup notifications if enabled
@@ -565,11 +563,48 @@ export default function PrayerTimesScreen() {
           const newIsHanafiMadhab = savedMadhab === 'hanafi';
           if (newIsHanafiMadhab !== isHanafiMadhab) {
             setIsHanafiMadhab(newIsHanafiMadhab);
-            // Update method values based on madhab
-            setAsrMethod(newIsHanafiMadhab ? 2 : 1); // Hanafi: 2, Shafi: 1
-            setIshaMethod(newIsHanafiMadhab ? 1 : 2); // Hanafi: 1, Shafi: 2
+            
+            // Update individual method values based on madhab setting
+            const newAsrMethod = newIsHanafiMadhab ? 2 : 1; // Hanafi: 2, Shafi: 1
+            const newIshaMethod = newIsHanafiMadhab ? 1 : 2; // Hanafi: 1, Shafi: 2
+            
+            // Only update if they've actually changed
+            if (newAsrMethod !== asrMethod) {
+              setAsrMethod(newAsrMethod);
+              await AsyncStorage.setItem(ASR_METHOD_KEY, newAsrMethod.toString());
+            }
+            
+            if (newIshaMethod !== ishaMethod) {
+              setIshaMethod(newIshaMethod);
+              await AsyncStorage.setItem(ISHA_METHOD_KEY, newIshaMethod.toString());
+            }
             
             // Update prayer times if we have location data
+            if (location) {
+              const coords: Coordinates = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+              };
+              updatePrayerTimes(selectedDate, coords);
+            }
+          }
+        } else {
+          // Check for individual method changes if unified madhab not set
+          const savedAsrMethod = await AsyncStorage.getItem(ASR_METHOD_KEY);
+          const savedIshaMethod = await AsyncStorage.getItem(ISHA_METHOD_KEY);
+          
+          if (savedAsrMethod !== null && parseInt(savedAsrMethod) !== asrMethod) {
+            setAsrMethod(parseInt(savedAsrMethod));
+          }
+          
+          if (savedIshaMethod !== null && parseInt(savedIshaMethod) !== ishaMethod) {
+            setIshaMethod(parseInt(savedIshaMethod));
+          }
+          
+          // If both methods were updated, update prayer times
+          if ((savedAsrMethod !== null && parseInt(savedAsrMethod) !== asrMethod) || 
+              (savedIshaMethod !== null && parseInt(savedIshaMethod) !== ishaMethod)) {
             if (location) {
               const coords: Coordinates = {
                 latitude: location.coords.latitude,
@@ -723,10 +758,13 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Asr} 
               isAsr={true}
               asrMethod={asrMethod}
-              onAsrPress={() => {
+              onAsrPress={async () => {
                 // Toggle Asr method when pressed
                 const newAsrMethod = asrMethod === 1 ? 2 : 1;
                 setAsrMethod(newAsrMethod);
+                
+                // Save the change to AsyncStorage
+                await AsyncStorage.setItem(ASR_METHOD_KEY, newAsrMethod.toString());
                 
                 // Update prayer times with the new method
                 if (location) {
@@ -759,10 +797,13 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Isha}
               isIsha={true}
               ishaMethod={ishaMethod}
-              onIshaPress={() => {
+              onIshaPress={async () => {
                 // Toggle Isha method when pressed
                 const newIshaMethod = ishaMethod === 1 ? 2 : 1;
                 setIshaMethod(newIshaMethod);
+                
+                // Save the change to AsyncStorage
+                await AsyncStorage.setItem(ISHA_METHOD_KEY, newIshaMethod.toString());
                 
                 // Update prayer times with the new method
                 if (location) {

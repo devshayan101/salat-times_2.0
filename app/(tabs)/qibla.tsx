@@ -1,6 +1,13 @@
 import React, { useEffect } from 'react';
 import LazyLoadComponent from '../components/LazyLoadComponent';
 import { View, Text } from 'react-native';
+import * as Location from 'expo-location';
+
+// Define a type to handle the internal API
+type LocationWithInternals = typeof Location & {
+  _subscriptions?: Record<string, any>;
+  _removeSubscription?: (subscription: { watchId: string }) => void;
+}
 
 // This is a lightweight wrapper around the QiblaScreen that helps with proper loading
 export default function QiblaTab() {
@@ -9,6 +16,27 @@ export default function QiblaTab() {
     return () => {
       // Clean up any potential resources that might be leaked
       console.log('Qibla tab unmounted - cleanup performed');
+      
+      // Force cleanup any dangling Location subscriptions
+      try {
+        // Cast to our internal type
+        const locationInternal = Location as LocationWithInternals;
+        
+        if (locationInternal._subscriptions) {
+          console.log('Forcing cleanup of remaining Location subscriptions');
+          Object.keys(locationInternal._subscriptions).forEach(key => {
+            try {
+              if (locationInternal._removeSubscription) {
+                locationInternal._removeSubscription({ watchId: key });
+              }
+            } catch (e) {
+              console.log(`Error cleaning up subscription ${key}:`, e);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error during Location subscription cleanup:', err);
+      }
     };
   }, []);
 
