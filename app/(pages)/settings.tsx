@@ -73,6 +73,9 @@ export default function SettingsScreen() {
     await setHijriAdjustment(newAdjustment);
     setHijriAdjustmentState(newAdjustment);
     updateHijriDate(newAdjustment);
+    
+    // Notify other parts of the app about the Hijri date adjustment change
+    await AsyncStorage.setItem('HIJRI_DATE_UPDATED', Date.now().toString());
   };
   
   // Reset the Hijri date adjustment to 0
@@ -80,6 +83,9 @@ export default function SettingsScreen() {
     await setHijriAdjustment(0);
     setHijriAdjustmentState(0);
     updateHijriDate(0);
+    
+    // Notify other parts of the app about the Hijri date adjustment change
+    await AsyncStorage.setItem('HIJRI_DATE_UPDATED', Date.now().toString());
   };
   
   // Toggle the notification preference
@@ -127,10 +133,14 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem(ISHA_METHOD_KEY, '2'); // Shafi for Isha
     }
     
+    // Dispatch an event to notify other screens about the settings change
+    // We'll use local storage as a communication channel
+    await AsyncStorage.setItem('SETTINGS_UPDATED', Date.now().toString());
+    
     // Show confirmation to the user
     Alert.alert(
       'Settings Updated',
-      `Prayer time calculations will now use ${newValue ? 'Hanafi' : 'Shafi'} method.`,
+      `Prayer time calculations will now use ${newValue ? 'Hanafi' : 'Shafi'} method. Changes have been applied immediately.`,
       [{ text: 'OK' }]
     );
   };

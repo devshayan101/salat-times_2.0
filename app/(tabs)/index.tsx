@@ -25,11 +25,10 @@ import { SehriIftarCard } from '../components/SehriIftarCard';
 import { AltitudeInputModal } from '../components/AltitudeInputModal';
 import { HijriCalendar } from '../components/HijriCalendar';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
-import { calculateHijriDate, formatHijriDate } from '../utils/hijriCalendar';
+import { calculateHijriDate, formatHijriDate, getHijriAdjustment } from '../utils/hijriCalendar';
 import * as Notifications from 'expo-notifications';
 import { useTheme } from '../utils/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getHijriAdjustment } from '../utils/hijriCalendar';
 
 // Constants for storage keys
 const PRAYER_SOUNDS_STORAGE_KEY = 'PRAYER_SOUNDS';
@@ -555,6 +554,59 @@ export default function PrayerTimesScreen() {
     loadHijriDateWithAdjustment();
   }, [selectedDate]);
   
+  // Add a listener for settings changes
+  useEffect(() => {
+    // Create a function to check for settings updates
+    const checkForSettingsUpdates = async () => {
+      try {
+        // Check for madhab changes
+        const savedMadhab = await AsyncStorage.getItem(MADHAB_KEY);
+        if (savedMadhab !== null) {
+          const newIsHanafiMadhab = savedMadhab === 'hanafi';
+          if (newIsHanafiMadhab !== isHanafiMadhab) {
+            setIsHanafiMadhab(newIsHanafiMadhab);
+            // Update method values based on madhab
+            setAsrMethod(newIsHanafiMadhab ? 2 : 1); // Hanafi: 2, Shafi: 1
+            setIshaMethod(newIsHanafiMadhab ? 1 : 2); // Hanafi: 1, Shafi: 2
+            
+            // Update prayer times if we have location data
+            if (location) {
+              const coords: Coordinates = {
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+              };
+              updatePrayerTimes(selectedDate, coords);
+            }
+          }
+        }
+        
+        // Check for Hijri date adjustments
+        const adjustment = await getHijriAdjustment();
+        const hijriDate = calculateHijriDate(new Date(), adjustment);
+        setCurrentHijriDate(hijriDate);
+      } catch (error) {
+        console.error('Error checking for settings updates:', error);
+      }
+    };
+    
+    // Create a listener for AppState changes to check settings when app becomes active
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active' && appState !== 'active') {
+        checkForSettingsUpdates();
+      }
+      setAppState(nextAppState);
+    });
+    
+    // Check for settings updates on interval (quick solution for detecting changes)
+    const intervalId = setInterval(checkForSettingsUpdates, 1000);
+    
+    return () => {
+      subscription.remove();
+      clearInterval(intervalId);
+    };
+  }, [location, isHanafiMadhab, selectedDate, manualAltitude]);
+  
   // Rest of the code...
 
   const renderDatePicker = () => {
@@ -671,11 +723,22 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Asr} 
               isAsr={true}
               asrMethod={asrMethod}
-              onAsrPress={() => Alert.alert(
-                'Prayer Method Settings',
-                'Prayer calculation methods can now be changed in the Settings screen using the unified Madhab toggle.',
-                [{ text: 'OK' }]
-              )}
+              onAsrPress={() => {
+                // Toggle Asr method when pressed
+                const newAsrMethod = asrMethod === 1 ? 2 : 1;
+                setAsrMethod(newAsrMethod);
+                
+                // Update prayer times with the new method
+                if (location) {
+                  const coords: Coordinates = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+                  };
+                  
+                  updatePrayerTimes(selectedDate, coords);
+                }
+              }}
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Asr.enabled}
               soundType={prayerSounds.Asr.sound}
@@ -696,11 +759,22 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Isha}
               isIsha={true}
               ishaMethod={ishaMethod}
-              onIshaPress={() => Alert.alert(
-                'Prayer Method Settings',
-                'Prayer calculation methods can now be changed in the Settings screen using the unified Madhab toggle.',
-                [{ text: 'OK' }]
-              )}
+              onIshaPress={() => {
+                // Toggle Isha method when pressed
+                const newIshaMethod = ishaMethod === 1 ? 2 : 1;
+                setIshaMethod(newIshaMethod);
+                
+                // Update prayer times with the new method
+                if (location) {
+                  const coords: Coordinates = {
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+                  };
+                  
+                  updatePrayerTimes(selectedDate, coords);
+                }
+              }}
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Isha.enabled}
               soundType={prayerSounds.Isha.sound}

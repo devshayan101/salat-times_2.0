@@ -222,7 +222,7 @@ export async function getHijriCalendarForMonth(year: number, month: number): Pro
   return calendarData;
 }
 
-// Calculate Sehri end time (10 minutes before Fajr)
+// Calculate Sehri end time (5 minutes before Fajr)
 export function calculateSehriEndTime(fajrTime: string): string {
   const [time, period] = fajrTime.split(' ');
   const [hours, minutes] = time.split(':').map(Number);
@@ -232,8 +232,8 @@ export function calculateSehriEndTime(fajrTime: string): string {
   if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
   if (period === 'AM' && hours === 12) totalMinutes = minutes;
   
-  // Subtract 10 minutes
-  totalMinutes -= 10;
+  // Subtract 5 minutes
+  totalMinutes -= 5;
   
   // Convert back to hours and minutes
   let resultHours = Math.floor(totalMinutes / 60);
