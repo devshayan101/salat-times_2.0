@@ -1,5 +1,4 @@
 import 'expo-router/entry';
-
 import React, { useEffect, useState, ErrorInfo, Suspense } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +7,7 @@ import { initializeAdminMessages } from './services/adminMessageService';
 import { ThemeProvider, useTheme } from './utils/ThemeContext';
 import { View, Text, StyleSheet, AppState, Button, LogBox, Platform, Alert } from 'react-native';
 import FallbackScreen from './components/FallbackScreen';
+
 
 // Ignore specific warnings that might be noisy but non-fatal
 LogBox.ignoreLogs([
@@ -116,9 +116,9 @@ class ErrorBoundary extends React.Component<
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorMessage}>{this.state.error?.message}</Text>
-          <Button 
-            title="Try Again" 
-            onPress={() => this.setState({ hasError: false, error: null, info: null })} 
+          <Button
+            title="Try Again"
+            onPress={() => this.setState({ hasError: false, error: null, info: null })}
           />
         </View>
       );
