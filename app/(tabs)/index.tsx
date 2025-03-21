@@ -758,25 +758,26 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Asr} 
               isAsr={true}
               asrMethod={asrMethod}
-              onAsrPress={async () => {
-                // Toggle Asr method when pressed
-                const newAsrMethod = asrMethod === 1 ? 2 : 1;
-                setAsrMethod(newAsrMethod);
-                
-                // Save the change to AsyncStorage
-                await AsyncStorage.setItem(ASR_METHOD_KEY, newAsrMethod.toString());
-                
-                // Update prayer times with the new method
-                if (location) {
-                  const coords: Coordinates = {
-                    latitude: location.coords.latitude,
-                    longitude: location.coords.longitude,
-                    altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
-                  };
+              //   onAsrPress={async () => {
+              //     // Toggle Asr method when pressed
+              //     const newAsrMethod = asrMethod === 1 ? 2 : 1;
+              //     setAsrMethod(newAsrMethod);
                   
-                  updatePrayerTimes(selectedDate, coords);
-                }
-              }}
+              //     // Save the change to AsyncStorage
+              //     await AsyncStorage.setItem(ASR_METHOD_KEY, newAsrMethod.toString());
+                  
+              //     // Update prayer times with the new method
+              //     if (location) {
+              //       const coords: Coordinates = {
+              //         latitude: location.coords.latitude,
+              //         longitude: location.coords.longitude,
+              //         altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+              //       };
+                    
+              //       updatePrayerTimes(selectedDate, coords);
+              //     }
+              //   }
+              // }
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Asr.enabled}
               soundType={prayerSounds.Asr.sound}
@@ -797,25 +798,25 @@ export default function PrayerTimesScreen() {
               time={prayerTimes.Isha}
               isIsha={true}
               ishaMethod={ishaMethod}
-              onIshaPress={async () => {
-                // Toggle Isha method when pressed
-                const newIshaMethod = ishaMethod === 1 ? 2 : 1;
-                setIshaMethod(newIshaMethod);
+              // onIshaPress={async () => {
+              //   // Toggle Isha method when pressed
+              //   const newIshaMethod = ishaMethod === 1 ? 2 : 1;
+              //   setIshaMethod(newIshaMethod);
                 
-                // Save the change to AsyncStorage
-                await AsyncStorage.setItem(ISHA_METHOD_KEY, newIshaMethod.toString());
+              //   // Save the change to AsyncStorage
+              //   await AsyncStorage.setItem(ISHA_METHOD_KEY, newIshaMethod.toString());
                 
-                // Update prayer times with the new method
-                if (location) {
-                  const coords: Coordinates = {
-                    latitude: location.coords.latitude,
-                    longitude: location.coords.longitude,
-                    altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
-                  };
+              //   // Update prayer times with the new method
+              //   if (location) {
+              //     const coords: Coordinates = {
+              //       latitude: location.coords.latitude,
+              //       longitude: location.coords.longitude,
+              //       altitude: manualAltitude ?? Math.max(0, location.coords.altitude ?? 0)
+              //     };
                   
-                  updatePrayerTimes(selectedDate, coords);
-                }
-              }}
+              //     updatePrayerTimes(selectedDate, coords);
+              //   }
+              // }}
               currentPrayer={currentPrayer}
               soundEnabled={prayerSounds.Isha.enabled}
               soundType={prayerSounds.Isha.sound}

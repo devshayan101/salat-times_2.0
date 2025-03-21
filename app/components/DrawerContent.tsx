@@ -61,7 +61,7 @@ export function DrawerContent({ navigation, state }: any) {
       <DrawerItem
         label="Salat Times"
         icon="time-outline"
-        onPress={() => navigation.navigate('(tabs)')}
+        onPress={() => navigation.navigate('index')}
         isActive={currentRouteName === 'index' || currentRouteName === '(tabs)'}
       />
       

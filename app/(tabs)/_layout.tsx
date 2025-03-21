@@ -261,7 +261,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Prayer Times',
+            title: 'Salat Times',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="time-outline" size={size} color={color} />
             ),
@@ -360,8 +360,8 @@ export default function TabLayout() {
                 <ScrollView style={styles.menuItems}>
                   <MenuItem 
                     icon="time-outline" 
-                    label="Prayer Times" 
-                    onPress={() => navigateTo('index')} 
+                    label="Salat Times" 
+                    onPress={() => navigateTo('/')} 
                     theme={theme}
                   />
                   
@@ -423,13 +423,13 @@ export default function TabLayout() {
                     onPress={() => navigateTo('(pages)/donations')} 
                     theme={theme}
                   />
-                  
-                  <MenuItem 
+                  {/* //Hide advertisements tab */}
+                  {/* <MenuItem 
                     icon="megaphone-outline" 
                     label="Advertisements" 
                     onPress={() => navigateTo('(pages)/advertisements')} 
                     theme={theme}
-                  />
+                  /> */}
                   
                   <View style={[styles.divider, { backgroundColor: theme.divider }]} />
                   
