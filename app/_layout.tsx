@@ -1,4 +1,3 @@
-import 'expo-router/entry';
 import React, { useEffect, useState, ErrorInfo, Suspense } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -285,7 +284,7 @@ function RootLayoutContent() {
 }
 
 // Wrap with ThemeProvider and ErrorBoundary
-export default function RootLayout() {
+const RootLayout = () => {
   return (
     <ThemeProvider>
       <ErrorBoundary>
@@ -293,7 +292,9 @@ export default function RootLayout() {
       </ErrorBoundary>
     </ThemeProvider>
   );
-}
+};
+
+export default RootLayout;
 
 const styles = StyleSheet.create({
   errorContainer: {

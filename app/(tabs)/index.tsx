@@ -25,10 +25,11 @@ import { SehriIftarCard } from '../components/SehriIftarCard';
 import { AltitudeInputModal } from '../components/AltitudeInputModal';
 import { HijriCalendar } from '../components/HijriCalendar';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
-import { calculateHijriDate, formatHijriDate, getHijriAdjustment } from '../utils/hijriCalendar';
+import { calculateHijriDate, formatHijriDate } from '../utils/hijriCalendar';
 import * as Notifications from 'expo-notifications';
 import { useTheme } from '../utils/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getHijriAdjustment } from '../utils/hijriCalendar';
 
 // Constants for storage keys
 const PRAYER_SOUNDS_STORAGE_KEY = 'PRAYER_SOUNDS';
@@ -401,11 +402,9 @@ export default function PrayerTimesScreen() {
         coords.altitude = manualAltitude;
       }
       
-      // Calculate method values based on the unified madhab setting
-      const asr = isHanafiMadhab ? 2 : 1;  // Hanafi: 2, Shafi: 1
-      const isha = isHanafiMadhab ? 1 : 2; // Hanafi: 1, Shafi: 2
-      
-      const calculatedTimes = calculatePrayerTimes(date, coords, asr, isha);
+      // Use the actual method values that have been set individually
+      // instead of deriving them from isHanafiMadhab
+      const calculatedTimes = calculatePrayerTimes(date, coords, asrMethod, ishaMethod);
       setPrayerTimes(calculatedTimes);
 
       // Setup notifications if enabled

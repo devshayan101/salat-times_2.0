@@ -1,13 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Platform, AppState, AppStateStatus, Animated } from 'react-native';
 import * as Location from 'expo-location';
 import Svg, { Path } from 'react-native-svg';
-import Animated, {
-  useAnimatedStyle,
-  withSpring,
-  useSharedValue,
-  runOnJS,
-} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../utils/ThemeContext';
 import { useRouter } from 'expo-router';
@@ -20,8 +14,7 @@ const KAABA_COORDS = {
 
 export default function QiblaScreen() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const qiblaDirectionValue = useSharedValue(0);
-  const headingValue = useSharedValue(0);
+  const [qiblaDirection, setQiblaDirection] = useState(0);
   const [heading, setHeading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { theme } = useTheme();
@@ -29,6 +22,25 @@ export default function QiblaScreen() {
   const isFocused = useIsFocused();
   const headingSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const appState = useRef(AppState.currentState);
+  
+  // Create animated rotation value
+  const rotationAnim = useRef(new Animated.Value(0)).current;
+
+  // Update rotation when heading or qibla direction changes
+  useEffect(() => {
+    // Calculate rotation
+    const rotationDegrees = heading === null 
+      ? qiblaDirection 
+      : qiblaDirection - (heading || 0);
+    
+    // Animate to new rotation
+    Animated.spring(rotationAnim, {
+      toValue: rotationDegrees,
+      useNativeDriver: true,
+      friction: 8,
+      tension: 40,
+    }).start();
+  }, [heading, qiblaDirection, rotationAnim]);
 
   // Setup location and calculate Qibla direction
   useEffect(() => {
@@ -55,7 +67,7 @@ export default function QiblaScreen() {
           const y = Math.sin(lon2 - lon1);
           const x = Math.cos(lat1) * Math.tan(lat2) - Math.sin(lat1) * Math.cos(lon2 - lon1);
           const qibla = Math.atan2(y, x) * (180 / Math.PI);
-          qiblaDirectionValue.value = qibla;
+          setQiblaDirection(qibla);
         }
       } catch (err) {
         if (isMounted) {
@@ -120,7 +132,6 @@ export default function QiblaScreen() {
         headingSubscriptionRef.current = await Location.watchHeadingAsync((headingData) => {
           const newHeading = headingData.trueHeading || headingData.magHeading;
           setHeading(newHeading);
-          headingValue.value = newHeading;
         });
         console.log('Started heading subscription');
       }
@@ -129,23 +140,17 @@ export default function QiblaScreen() {
     }
   };
 
-  const animatedStyle = useAnimatedStyle(() => {
-    // Calculate rotation directly in the worklet
-    const rotationDegrees = heading === null 
-      ? qiblaDirectionValue.value 
-      : qiblaDirectionValue.value - headingValue.value;
-    
-    return {
-      transform: [
-        {
-          rotate: withSpring(`${rotationDegrees}deg`, {
-            damping: 20,
-            stiffness: 90,
-          }),
-        },
-      ],
-    };
-  });
+  // Create rotation style using interpolation
+  const rotateStyle = {
+    transform: [
+      {
+        rotate: rotationAnim.interpolate({
+          inputRange: [0, 360],
+          outputRange: ['0deg', '360deg'],
+        }),
+      },
+    ],
+  };
 
   if (error) {
     return (
@@ -159,7 +164,7 @@ export default function QiblaScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background, zIndex: 1 }]}>
       <Text style={[styles.title, { color: theme.textPrimary }]}>Qibla Direction</Text>
       <View style={[styles.compassContainer, { backgroundColor: theme.surface }]}>
-      <Animated.View style={[styles.compass, animatedStyle]}>
+      <Animated.View style={[styles.compass, rotateStyle]}>
           <Svg height="200" width="200" viewBox="0 0 100 100">
             {/* Kaaba Icon */}
             <Path
@@ -210,7 +215,7 @@ export default function QiblaScreen() {
           : 'Determining location...'}
       </Text>
       <Text style={[styles.degrees, { color: theme.primary }]}>
-        {qiblaDirectionValue ? `${Math.round(qiblaDirectionValue.value)}° from North` : ''}
+        {qiblaDirection ? `${Math.round(qiblaDirection)}° from North` : ''}
       </Text>
       {heading !== null && (
         <Text style={[styles.heading, { color: theme.textSecondary }]}>
