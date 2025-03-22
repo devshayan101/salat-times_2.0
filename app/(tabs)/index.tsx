@@ -3,10 +3,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressa
 import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import * as BackgroundFetch from 'expo-background-fetch';
-
 import { PrayerTimes, Coordinates, PrayerSoundPreferences } from '../types/index';
 import { calculatePrayerTimes } from '../services/prayerTimeCalculator';
 import { 
@@ -19,14 +16,12 @@ import {
   NOTIFICATION_SOUNDS
 } from '../services/notificationService';
 import { PrayerCard } from '../components/PrayerCard';
-import { NotificationToggle } from '../components/NotificationToggle';
 import { SoundSelectionModal } from '../components/SoundSelectionModal';
 import { SehriIftarCard } from '../components/SehriIftarCard';
 import { AltitudeInputModal } from '../components/AltitudeInputModal';
 import { HijriCalendar } from '../components/HijriCalendar';
 import { getPrayerTimes, PrayerTimeInfo } from '../utils/timeUtils';
 import { calculateHijriDate, formatHijriDate } from '../utils/hijriCalendar';
-import * as Notifications from 'expo-notifications';
 import { useTheme } from '../utils/ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getHijriAdjustment } from '../utils/hijriCalendar';
