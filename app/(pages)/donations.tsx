@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../utils/ThemeContext';
@@ -17,6 +17,7 @@ export default function DonationsScreen() {
   
   const handleDonate = (amount: number) => {
     // In a real app, this would open a payment gateway
+    Linking.openURL('https://sawadeazam.org/pe/');
     console.log(`Donating $${amount}`);
     // You could use something like Stripe, PayPal, etc.
   };
@@ -57,7 +58,7 @@ export default function DonationsScreen() {
           
           <TouchableOpacity
             style={[styles.customAmountButton, { borderColor: theme.primary }]}
-            onPress={() => {/* Open custom amount dialog */}}
+            onPress={() => {Linking.openURL('https://sawadeazam.org/pe/');}}
           >
             <Text style={[styles.customAmountText, { color: theme.primary }]}>
               Enter Custom Amount
