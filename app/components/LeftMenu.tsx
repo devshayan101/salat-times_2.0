@@ -76,7 +76,7 @@ const LeftMenu: React.FC<LeftMenuProps> = ({
       route: '(pages)/settings' 
     },
     { 
-      icon: 'cash-outline', 
+      icon: 'heart-outline', 
       label: 'Donations', 
       route: '(pages)/donations' 
     },
@@ -268,9 +268,8 @@ const LeftMenu: React.FC<LeftMenuProps> = ({
                   )}
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-            
-            {/* Theme Toggle */}
+
+              {/* Theme Toggle */}
             <TouchableOpacity 
               style={[
                 styles.themeToggle, 
@@ -292,6 +291,9 @@ const LeftMenu: React.FC<LeftMenuProps> = ({
                 {isDark ? "Light Mode" : "Dark Mode"}
               </Text>
             </TouchableOpacity>
+            </ScrollView>
+            
+            
           </Animated.View>
         </View>
       </View>

@@ -34,7 +34,6 @@ function formatRemainingTime(ms: number): string {
 export function getPrayerTimes(prayerTimes: Record<string, string>): PrayerTimeInfo {
   const now = new Date();
   const prayers = Object.entries(prayerTimes)
-    .filter(([name]) => name !== 'Ishraq') // Only exclude Ishraq, keep Sunrise and Zawal for time calculations
     .map(([name, time]) => {
       const date = convertPrayerTimeToDate(time, now);
       // If prayer time has passed today, add it for tomorrow

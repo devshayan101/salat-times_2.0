@@ -218,7 +218,7 @@ export default function TabLayout() {
           options={{
             title: 'Tasbih',
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="ellipsis-horizontal-circle-outline" size={size} color={color} />
+              <Ionicons name="finger-print-outline" size={size} color={color} />
             ),
           }}
         />
@@ -249,7 +249,7 @@ export default function TabLayout() {
             ),
           }}
         />
-      </Tabs>
+        </Tabs>
       
       {/* Use the new LeftMenu component */}
       <LeftMenu 

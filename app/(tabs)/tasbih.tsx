@@ -140,6 +140,66 @@ export default function TasbihScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      
+
+        {/* Preset targets */}
+        <View style={styles.presetsContainer}>
+          <Text style={[styles.presetsTitle, { color: theme.textSecondary }]}>Common Tasbih Targets</Text>
+          <View style={styles.presetButtonsContainer}>
+            {[33, 66, 313, 360,1000].map(target => (
+              <TouchableOpacity 
+                key={target} 
+                style={[
+                  styles.presetButton,
+                  { 
+                    backgroundColor: customTarget === target ? theme.primary : theme.surface,
+                    borderColor: theme.divider 
+                  }
+                ]}
+                onPress={() => setCustomTarget(target)}
+              >
+                <Text style={[
+                  styles.presetButtonText, 
+                  { color: customTarget === target ? theme.tasbihButtonText : theme.textPrimary }
+                ]}>
+                  {target}
+                </Text>
+                {count >= target && (
+                  <View style={[styles.checkmark, { backgroundColor: theme.success }]}>
+                    <Ionicons name="checkmark" size={12} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Control buttons */}
+        <View style={styles.controlButtons}>
+          
+          
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
+            onPress={toggleVibration}
+          >
+            <Ionicons 
+              name={vibrationEnabled ? "cellular" : "cellular-outline"} 
+              size={18} 
+              color={vibrationEnabled ? theme.success : theme.textSecondary} 
+            />
+            <Text style={[styles.controlButtonText, { color: vibrationEnabled ? theme.success : theme.textSecondary }]}>
+              {vibrationEnabled ? 'Vibration On' : 'Vibration Off'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
+            onPress={resetCount}
+          >
+            <Text style={[styles.controlButtonText, { color: theme.error }]}>Reset</Text>
+          </TouchableOpacity>
+        </View>
+
     <ScrollView>
       <View style={styles.mainContainer}>
         {/* Counter display */}
@@ -181,61 +241,9 @@ export default function TasbihScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Preset targets */}
-        <View style={styles.presetsContainer}>
-          <Text style={[styles.presetsTitle, { color: theme.textSecondary }]}>Common Tasbih Targets</Text>
-          <View style={styles.presetButtonsContainer}>
-            {[33, 99, 100, 1000].map(target => (
-              <TouchableOpacity 
-                key={target} 
-                style={[
-                  styles.presetButton,
-                  { 
-                    backgroundColor: customTarget === target ? theme.primary : theme.surface,
-                    borderColor: theme.divider 
-                  }
-                ]}
-                onPress={() => setCustomTarget(target)}
-              >
-                <Text style={[
-                  styles.presetButtonText, 
-                  { color: customTarget === target ? theme.tasbihButtonText : theme.textPrimary }
-                ]}>
-                  {target}
-                </Text>
-                {count >= target && (
-                  <View style={[styles.checkmark, { backgroundColor: theme.success }]}>
-                    <Ionicons name="checkmark" size={12} color="#fff" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        
 
-        {/* Control buttons */}
-        <View style={styles.controlButtons}>
-          <TouchableOpacity 
-            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
-            onPress={resetCount}
-          >
-            <Text style={[styles.controlButtonText, { color: theme.error }]}>Reset</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.controlButton, { backgroundColor: theme.surface, borderColor: theme.divider }]} 
-            onPress={toggleVibration}
-          >
-            <Ionicons 
-              name={vibrationEnabled ? "cellular" : "cellular-outline"} 
-              size={18} 
-              color={vibrationEnabled ? theme.success : theme.textSecondary} 
-            />
-            <Text style={[styles.controlButtonText, { color: vibrationEnabled ? theme.success : theme.textSecondary }]}>
-              {vibrationEnabled ? 'Vibration On' : 'Vibration Off'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        
       </View>
       
       {/* Custom target modal */}
