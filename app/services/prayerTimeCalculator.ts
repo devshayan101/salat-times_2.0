@@ -61,9 +61,9 @@ export function calculatePrayerTime(
   } else if (isFajrOrIsha) {
     if (salat === 'isha') {
       // Hanafi method = 1 (default), Shafi method = 2
-      A = ishaMethod === 2 ? 107 + sqrtE * 0.0347 : 110 + sqrtE * 0.0347;
+      A = ishaMethod === 2 ? 107 + sqrtE * 0.0347 : 109 + sqrtE * 0.0347;
     } else {
-      A = 110 + sqrtE * 0.0347;
+      A = 109 + sqrtE * 0.0347;
     }
   } else {
     A = Math.atan(asrMethod + tanValue) * (180 / Math.PI);
