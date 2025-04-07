@@ -146,7 +146,7 @@ export default function TasbihScreen() {
         <View style={styles.presetsContainer}>
           <Text style={[styles.presetsTitle, { color: theme.textSecondary }]}>Common Tasbih Targets</Text>
           <View style={styles.presetButtonsContainer}>
-            {[33, 66, 313, 360,1000].map(target => (
+            {[33, 100, 313, 1000].map(target => (
               <TouchableOpacity 
                 key={target} 
                 style={[

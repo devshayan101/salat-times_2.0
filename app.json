@@ -10,8 +10,8 @@
     "newArchEnabled": false,
     "splash": {
       "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1F2937"
+      "resizeMode": "cover",
+      "backgroundColor": "#FAFAFA"
     },
     "updates": {
       "url": "https://u.expo.dev/580e5ef9-0826-4e2a-a631-aeea5674c124",
