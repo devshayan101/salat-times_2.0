@@ -31,7 +31,7 @@
       "package": "com.shayandev.salattimes",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#1F2937"
+        "backgroundColor": "#FAFAFA"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
