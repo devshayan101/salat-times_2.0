@@ -1,16 +1,30 @@
 # Salat Time App
 
-This is a mobile application designed to help users keep track of daily prayer (Salat) times.
+This is a React Native/Expo mobile application called "SalatTimes" designed to help Muslims track their daily prayers. Here are the key features:
 
-## Features
+## Core Functionality
 
-*   Displays accurate daily prayer times based on location.
-*   Qibla direction finder.
-*   Tasbih counter.
-*   Hijri Calendar integration.
-*   Notifications for prayer times.
-*   Admin messages/updates.
-*   Customizable settings (e.g., calculation methods, notification sounds).
+Displays accurate prayer times based on user's location
+Qibla direction finder with compass integration
+Tasbih (prayer bead) counter
+Hijri Calendar integration
+Prayer time notifications
+
+## Additional Features
+
+Admin message system
+Customizable settings (calculation methods, notification sounds)
+Multiple madhab support (Hanafi/Shafi calculations)
+Donation system
+Dark/light theme support
+
+## Technical Stack
+
+React Native with Expo framework
+TypeScript for type safety
+MongoDB integration for admin messages
+Location services for prayer times and qibla
+Expo notifications for prayer alerts
 
 ## Development
 
@@ -18,9 +32,9 @@ This app is built using React Native and Expo.
 
 ### Setup
 
-1.  Clone the repository.
-2.  Install dependencies: `npm install`
-3.  Run the app: `npx expo start`
+1. Clone the repository.
+2. Install dependencies: `npm install`
+3. Run the app: `npx expo start`
 
 ## Troubleshooting
 
